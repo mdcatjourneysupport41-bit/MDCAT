@@ -44,6 +44,17 @@ textarea{min-height:110px;resize:vertical}
 .jg p{font-size:clamp(17px,5.4vw,24px);color:#fff}
 .qi{display:block;max-width:100%;max-height:340px;object-fit:contain;margin-top:10px;border-radius:12px;background:#fff;border:1px solid var(--bd);cursor:zoom-in}
 .pal{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--bd);background:var(--card);color:var(--tx);font-weight:700;margin:3px;cursor:pointer}.pal.a{background:var(--ac2);color:var(--ac);border-color:var(--ac)}.pal.c{outline:2px solid var(--ac)}.opt.sel{border-color:var(--ac);background:var(--ac2)}.rv .opt.ok{background:rgba(13,159,110,.25);border-color:#0d9f6e}.rv .opt.no{background:rgba(225,29,72,.25);border-color:#e11d48}.exp{margin-top:10px;padding:10px;border-radius:12px;background:var(--bg);font-size:14px;line-height:1.45}
+.upd{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;justify-content:center;padding:0 12px calc(12px + env(safe-area-inset-bottom,0px));pointer-events:none;animation:updIn .45s cubic-bezier(.2,.8,.2,1) both}
+.upd-card{pointer-events:auto;width:100%;max-width:460px;background:var(--card);color:var(--tx);border:1.5px solid var(--bd);border-radius:22px;padding:18px 16px 16px;box-shadow:0 18px 50px rgba(230,22,138,.28),0 4px 14px rgba(0,0,0,.18);position:relative;overflow:hidden;display:grid;grid-template-columns:auto 1fr;gap:12px 14px;align-items:center}
+.upd-card::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,var(--ac),#7c3aed,#06b6d4)}
+.upd-ic{width:54px;height:54px;border-radius:17px;background:linear-gradient(135deg,var(--ac),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:27px;box-shadow:0 6px 16px rgba(230,22,138,.35)}
+.upd-tx{display:flex;flex-direction:column;gap:3px}.upd-tx b{font-size:17px}.upd-tx span{font-size:13.5px;color:var(--mu);line-height:1.4}
+.upd-bt{grid-column:1 / -1;display:flex;gap:10px}
+.upd-b{flex:1;min-height:46px;border-radius:14px;border:0;font-weight:700;font-size:15px;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--ac),#7c3aed);font-family:inherit}
+.upd-b.g{background:var(--bg);color:var(--tx);border:1.5px solid var(--bd)}
+.upd-b:disabled{opacity:.6;cursor:default}
+@keyframes updIn{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.upd{animation:none}}
 </style></head><body>
 <header><button class="ib" id="bk" style="visibility:hidden;font-size:26px" onclick="hb()" aria-label="Back">‹</button><button class="ib" onclick="dr(1)" aria-label="Menu">☰</button><h1>MDCAT<small>JOURNEY 🩺</small></h1><span class="net" id="net"></span><button class="ib" onclick="theme()" aria-label="Theme">◐</button></header>
 <div id="drawer" onclick="dr(0)"><nav onclick="event.stopPropagation()"><h2 style="margin:0 0 14px;font-size:28px">MDCAT</h2><div id="nav"></div></nav></div>
@@ -154,18 +165,18 @@ return a.publish(TPL.slice(0,i)+j+TPL.slice(e))}).then(function(){},function(e){
 var PK=["log","bm","mast","mocks","todo","study","set"],CK=["sec","mcq","notes","papers","books"];
 function blankP(){return{log:[],bm:[],mast:[],mocks:[],todo:[],study:{},set:{neg:0.25,sec:60,goal:30,min:60,diff:"All",only:1}}}
 function setP(p){var b=blankP();PK.forEach(function(k){D[k]=p&&p[k]!==undefined?p[k]:b[k]});migrate()}
-function save(){try{if(!AUTHON){localStorage.setItem("mdcat",JSON.stringify(D));return}var c={};CK.forEach(function(k){c[k]=D[k]});localStorage.setItem("mdcat",JSON.stringify(c));if(USER){var p={};PK.forEach(function(k){p[k]=D[k]});localStorage.setItem("mdcat_p_"+USER.id,JSON.stringify(p))}}catch(e){}}
+function save(){try{if(!AUTHON){localStorage.setItem("mdcat",JSON.stringify(D));return}var c={};CK.forEach(function(k){c[k]=D[k]});c.sec=D.sec.filter(nb);c.mcq=D.mcq.filter(nb);localStorage.setItem("mdcat",JSON.stringify(c));if(USER){var p={};PK.forEach(function(k){p[k]=D[k]});localStorage.setItem("mdcat_p_"+USER.id,JSON.stringify(p))}admSched()}catch(e){}}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function $(i){return document.getElementById(i)}
 function uid(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
 function dr(o){if(AUTHON&&!USER)return;$("drawer").classList.toggle("on",!!o)}
 function theme(){var r=document.documentElement,d=r.getAttribute("data-theme")==="dark"||(!r.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme:dark)").matches);r.setAttribute("data-theme",d?"light":"dark")}
 var H=[],NOH=["secform","mcqadd","paperadd","note","mockrun"];
-function go(v,x,nb){x=x||null;if(AUTHON&&!USER&&v!=="auth"){v="auth";x=null}if(!ADMIN&&["imp","secform","mcqadd","paperadd"].indexOf(v)>-1){v="home";x=null}if(!nb&&(v!==V||x!==Q)&&NOH.indexOf(V)<0){H.push({v:V,q:Q});if(H.length>60)H.shift();try{history.pushState({n:1},"")}catch(e){}}V=v;Q=x;dr(0);$("nav").innerHTML=(AUTHON&&!USER)?"":(USER?'<a onclick="go(\'profile\')"><i>\uD83D\uDC64</i>'+esc(USER.name)+'</a>':"")+NAV.filter(function(n){return(ADMIN||n[0]!=="imp")&&((window.claude&&window.claude.use)||["ai"].indexOf(n[0])<0)}).map(function(n){return '<a class="'+(n[0]===V?"cur":"")+'" onclick="go(\''+n[0]+'\')"><i style="background:'+n[3]+'22">'+n[2]+'</i>'+n[1]+'</a>'}).join("")+(USER?'<a onclick="logout()"><i>\uD83D\uDEAA</i>Log out</a>':"");render();$("bk").style.visibility=H.length?"visible":"hidden";scrollTo(0,0)}
+function go(v,x,nb){x=x||null;if(AUTHON&&!USER&&v!=="auth"){v="auth";x=null}if((!canMgr()&&["imp","impx","secform","mcqadd"].indexOf(v)>-1)||(!ADMIN&&v==="paperadd")){v="home";x=null}if(!nb&&(v!==V||x!==Q)&&NOH.indexOf(V)<0){H.push({v:V,q:Q});if(H.length>60)H.shift();try{history.pushState({n:1},"")}catch(e){}}V=v;Q=x;dr(0);$("nav").innerHTML=(AUTHON&&!USER)?"":(USER?'<a onclick="go(\'profile\')"><i>\uD83D\uDC64</i>'+esc(USER.name)+'</a>':"")+NAV.filter(function(n){return(canMgr()||n[0]!=="imp")&&((window.claude&&window.claude.use)||["ai"].indexOf(n[0])<0)}).map(function(n){return '<a class="'+(n[0]===V||(n[0]==="imp"&&["impx","secform","mcqadd"].indexOf(V)>-1)?"cur":"")+'" onclick="go(\''+n[0]+'\')"><i style="background:'+n[3]+'22">'+n[2]+'</i>'+n[1]+'</a>'}).join("")+(USER?'<a onclick="logout()"><i>\uD83D\uDEAA</i>Log out</a>':"");render();$("bk").style.visibility=H.length?"visible":"hidden";scrollTo(0,0)}
 function back(){if($("drawer").classList.contains("on")){dr(0);return}if(!H.length)return;var p=H.pop();go(p.v,p.q,1)}
 function hb(){try{if(H.length&&history.state&&history.state.n){history.back();return}}catch(e){}back()}
 addEventListener("popstate",function(){if($("drawer").classList.contains("on")){dr(0);try{history.pushState({n:1},"")}catch(e){}return}back()});
-function render(){var f={comm:comm,csec:csec,cnew:cnew,creports:creports,auth:auth,profile:profile,books:books,solve:solve,mock:mock,mockrun:mockrun,mockres:mockres,bmpage:bmpage,wrong:wrong,planner:planner,revision:revision,search:search,settings:settings,ai:ai,home:home,practice:practice,quiz:quiz,notes:notes,note:noteEd,secform:secform,mcqadd:mcqadd,stats:stats,backup:backup,papers:papers,paperadd:paperAdd,imp:imp}[V];$("app").innerHTML=f();hydrate()}
+function render(){var f={comm:comm,csec:csec,cnew:cnew,creports:creports,auth:auth,profile:profile,books:books,solve:solve,mock:mock,mockrun:mockrun,mockres:mockres,bmpage:bmpage,wrong:wrong,planner:planner,revision:revision,search:search,settings:settings,ai:ai,home:home,practice:practice,quiz:quiz,notes:notes,note:noteEd,secform:secform,mcqadd:mcqadd,stats:stats,backup:backup,papers:papers,paperadd:paperAdd,imp:imp,impx:impx}[V];$("app").innerHTML=f();hydrate()}
 function secById(id){return D.sec.filter(function(x){return x.id===id})[0]}
 function kids(id){return D.sec.filter(function(x){return(x.p||null)===(id||null)})}
 function ids(id){var r=[id];kids(id).forEach(function(k){r=r.concat(ids(k.id))});return r}
@@ -193,22 +204,43 @@ return '<div class="jh"><h1>MDCAT JOURNEY 🩺</h1><p>Your Dream. Your Dedicatio
 '<div class="g2">'+box("#e6168a","🧠","Practice","Sections and MCQs",D.mcq.length+" MCQS","go('practice')",1)+box("#2563eb","📝","Mock Tests","Timed full tests",D.mocks.length+" TAKEN","go('mock')",1)+box("#e6168a","🔄","Revision","Revise today",rv+" TO REVISE","go('revision')",1)+box("#e11d48","❌","Wrong Questions","Fix your mistakes","FIX","go('wrong')",1)+box("#f59e0b","🔖","Bookmarks","Saved questions",D.bm.length+" SAVED","go('bmpage')",1)+box("#06b6d4","📅","Study Planner","Daily targets","PLAN","go('planner')",1)+'</div>'}
 function secNew(p){SF={p:p,name:"",em:EMS[0],c:COLS[0][1]};go("secform")}
 function secEdit(id){var x=secById(id);SF={id:id,p:x.p,name:x.name,em:x.em,c:x.c};go("secform")}
-function mcqNew(id){go("mcqadd",id)}
-function impTo(id){IM.items=[];IM.src="";IM.sec=id||"";go("imp")}
+var MQ=null;
+function mcqNew(id){MQ=null;go("mcqadd",id)}
+function mcqEdit(id){var m=mcqById(id);if(!m)return;MQ={id:id};go("mcqadd",m.sec)}
+function impTo(id){IM.items=[];IM.src="";IM.sec=id||"";IM.dt="";IM.fname="";go("impx")}
+function gm(id){return"go('imp'"+(id?",'"+id+"'":"")+")"}
+function cntP(id){var x=ids(id);return D.mcq.filter(function(m){return x.indexOf(m.sec)>-1&&m.a>=0}).length}
+function lastOk(){var r={};D.log.forEach(function(x){r[x.id]=x.ok});return r}
+function startAt(sid,mid){var l=D.mcq.filter(function(m){return m.sec===sid&&m.a>=0}),i=0;if(!l.length)return;l.forEach(function(m,k){if(m.id===mid)i=k});T={list:l,i:i,ok:0,pick:null,picks:{},back:sid};go("quiz")}
+/* ---------- Practice: students only practise ---------- */
 function practice(){var id=Q,s=id?secById(id):null;if(!s)id=null;var h='';
 if(s)h+='<div class="row" style="margin-bottom:8px"><button class="btn g s" onclick="'+gp(s.p)+'">‹ Back</button><span class="mu sp">'+esc(path(id))+'</span></div>';
-h+='<h2 class="t">'+(s?esc(s.name):"Practice")+'</h2>'+(ADMIN?'<div class="row" style="margin-bottom:12px"><button class="btn s" onclick="secNew('+(id?"'"+id+"'":"null")+')">+ Section</button>'+(s?'':'<button class="btn g s" onclick="impTo(null)">Upload PDF</button>')+(s?'<button class="btn s" onclick="mcqNew(\''+id+'\')">+ MCQ</button><button class="btn g s" onclick="impTo(\''+id+'\')">Upload PDF</button><button class="btn g s" onclick="shareNew(\''+id+'\')">Share</button><button class="btn g s" onclick="secEdit(\''+id+'\')">Edit</button><button class="btn g s" onclick="secDel(\''+id+'\')">Delete</button>':"")+'</div>':"");
-if(s){var n=D.mcq.filter(function(m){return ids(id).indexOf(m.sec)>-1&&m.a>=0}).length;if(n)h+='<button class="btn" style="margin-bottom:12px;width:100%" onclick="start(\'s:'+id+'\')">Practice all ('+n+' MCQs)</button>'}
-if(s&&ADMIN){var aa=ids(id),un=D.mcq.filter(function(m){return aa.indexOf(m.sec)>-1&&m.a<0}).length;if(un)h+='<div class="box" style="--c:#7c3aed"><b>'+un+' MCQs have no answer yet</b><p style="margin:6px 0 10px">Find the answers in your books. Works offline, and the book page is saved as the explanation.</p><div class="row"><button class="btn" onclick="bookKey(\''+id+'\')">Find answers from my books</button>'+(window.claude&&claude.use?'<button class="btn g" onclick="solveSec(\''+id+'\')">Solve with AI</button>':"")+'</div></div>'}
+h+='<h2 class="t">'+(s?esc(s.name):"Practice")+'</h2>';if(!s)h+=bankCard();
+if(s){var n=cntP(id);if(n)h+='<div class="row" style="margin-bottom:12px"><button class="btn" style="flex:1" onclick="start(\'s:'+id+'\')">Practice all ('+n+' MCQs)</button><button class="btn g" onclick="testStart(\''+id+'\')">Take test</button></div>'}
+var ks=kids(id).filter(function(k){return cntP(k.id)>0});
+ks.forEach(function(k){var sub=kids(k.id).filter(function(z){return cntP(z.id)>0}).length;h+=box(k.c,k.em,esc(k.name),(k.bk?"Official · ":"")+(sub?sub+" sections inside":"Open to practise"),cntP(k.id)+" MCQS",gp(k.id),1)});
+if(s){var own=D.mcq.filter(function(m){return m.sec===id&&m.a>=0}),lo=lastOk();
+if(own.length){h+='<div class="mu" style="margin:6px 0"><b>'+own.length+' MCQs</b> here. Tap a question to start from it.</div>';own.forEach(function(m,k){var st=lo[m.id];h+='<div class="box tap" style="--c:'+s.c+'" onclick="startAt(\''+id+'\',\''+m.id+'\')"><p style="color:inherit;margin:0 0 8px"><b style="font-size:18px">'+(k+1)+'.</b> '+(st===undefined?"":st?'<span class="pill" style="--c:#0d9f6e">✓ Correct</span> ':'<span class="pill" style="--c:#e11d48">✗ Missed</span> ')+qnum(m)+esc(m.q)+'</p>'+qimg(m)+'</div>'})}
+else if(!ks.length)h+=box(s.c,"📭","Nothing to practise here yet","Questions added in Import MCQs appear here automatically.","",0,0)}
+else{if(!ks.length)h+=box("#e6168a","🗂️","No MCQs yet",AUTHON&&!isAdm()?"Connect to the internet once. The MCQs published by the admin download here automatically and then work offline.":"Sections and MCQs added in Import MCQs appear here automatically.","",0,0);
+h+='<div class="g2" style="margin-top:12px">'+box("#e6168a","🎯","Mixed test","20 random MCQs","ALL","start('*')",0)+box("#f59e0b","🔖","Bookmarked","Questions you saved",D.bm.length+" SAVED","start('bm')",0)+'</div><div style="height:12px"></div>'+box("#e11d48","🔁","Wrong answers","Retry what you missed","REVISE","start('wrong')",1)}
+return h}
+/* ---------- Import MCQs: the complete MCQ management section ---------- */
+function imp(){var id=Q,s=id?secById(id):null;if(!s)id=null;var h='';
+if(s)h+='<div class="row" style="margin-bottom:8px"><button class="btn g s" onclick="'+gm(s.p)+'">‹ Back</button><span class="mu sp">'+esc(path(id))+'</span></div>';
+h+='<h2 class="t">'+(s?esc(s.name):"Import MCQs")+'</h2><div class="row" style="margin-bottom:12px"><button class="btn s" onclick="secNew('+(id?"'"+id+"'":"null")+')">+ Section</button>'+(s?'<button class="btn s" onclick="mcqNew(\''+id+'\')">+ MCQ</button>':"")+'<button class="btn g s" onclick="impTo('+(id?"'"+id+"'":"null")+')">Upload PDF</button>'+(s?'<button class="btn g s" onclick="shareNew(\''+id+'\')">Share</button><button class="btn g s" onclick="secEdit(\''+id+'\')">Edit</button><button class="btn g s" onclick="secDel(\''+id+'\')">Delete</button>':"")+'</div>';
+h+=(s?bankFolderBar(id):bankPanel());
+if(s){var tot=cnt(id),pr=cntP(id);h+='<div class="mu" style="margin-bottom:10px">'+tot+' MCQs in this folder and its sub-sections · '+pr+' ready in Practice <a onclick="go(\'practice\',\''+id+'\')" style="color:var(--ac);cursor:pointer;font-weight:700">View in Practice</a></div>'}
+if(s){var aa=ids(id),un=D.mcq.filter(function(m){return aa.indexOf(m.sec)>-1&&m.a<0}).length;if(un)h+='<div class="box" style="--c:#7c3aed"><b>'+un+' MCQs have no answer yet</b><p style="margin:6px 0 10px">Find the answers in your books. Works offline, and the book page is saved as the explanation.</p><div class="row"><button class="btn" onclick="bookKey(\''+id+'\')">Find answers from my books</button>'+(window.claude&&claude.use?'<button class="btn g" onclick="solveSec(\''+id+'\')">Solve with AI</button>':"")+'</div></div>'}
 if(s){var aa2=ids(id),all2=D.mcq.filter(function(m){return aa2.indexOf(m.sec)>-1}),wa=all2.filter(function(m){return m.a>=0}).length,ch2=chainSec(id),bk2=D.books.filter(function(b){return b.sec&&ch2.indexOf(b.sec)>-1}),cf=all2.filter(function(m){return m.vf&&m.vf.ok===0&&!m.vf.keep}).length,unv=all2.filter(function(m){return m.a>=0&&!m.vf}).length;
 h+='<div class="box" style="--c:#7c3aed"><b>📚 Book and test for this section</b><p style="margin:6px 0 10px">'+(bk2.length?bk2.map(function(b){return esc(b.t)+' ('+b.n+' pages)'}).join(", "):"No book uploaded here yet. Upload this chapter's book (PDF or photos) so the app can read it and make or check the answer key.")+'</p><div class="row"><button class="btn g s" onclick="go(\'books\',\''+id+'\')">Upload book / photos</button>'+(wa?'<button class="btn s" onclick="testStart(\''+id+'\')">Take test ('+wa+' MCQs)</button>':"")+(D.books.length&&unv?'<button class="btn g s" onclick="verifyKey(\''+id+'\')">Verify my answers with book</button>':"")+(cf?'<button class="btn g s" onclick="verifyShow(\''+id+'\')">⚠ '+cf+' differ from book</button>':"")+'</div></div>'}
+
 var ks=kids(id);
-ks.forEach(function(k){var sub=kids(k.id).length;h+=box(k.c,k.em,esc(k.name),sub?sub+" sections inside":"Open to add MCQs",cnt(k.id)+" MCQS",gp(k.id),1)});
+ks.forEach(function(k){var sub=kids(k.id).length;h+=box(k.c,k.em,esc(k.name),sub?sub+" sections inside":"Open to add MCQs",cnt(k.id)+" MCQS",gm(k.id),1)});
 if(s){var own=D.mcq.filter(function(m){return m.sec===id});
-if(own.length){h+='<div class="mu" style="margin:6px 0"><b>'+own.length+' MCQs</b> in this section, numbered in order</div>';own.forEach(function(m,k){h+='<div class="box" style="--c:'+s.c+'"><p style="color:inherit;margin:0 0 8px"><b style="font-size:18px">'+(k+1)+'.</b> '+(m.a<0?'<span class="pill" style="--c:#e11d48">No answer</span> ':"")+qnum(m)+esc(m.q)+'</p>'+qimg(m)+(ADMIN?'<button class="btn g s" onclick="delM(\''+m.id+'\')">Delete</button>':"")+'</div>'})}
+if(own.length){h+='<div class="mu" style="margin:6px 0"><b>'+own.length+' MCQs</b> in this section, numbered in order</div>';var dcnt={},pd="";own.forEach(function(m){if(m.di)dcnt[m.di]=(dcnt[m.di]||0)+1});own.forEach(function(m,k){h+=docHead(m,pd,dcnt);pd=m.di||"";h+='<div class="box" style="--c:'+s.c+'"><p style="color:inherit;margin:0 0 8px"><b style="font-size:18px">'+(k+1)+'.</b> '+(m.a<0?'<span class="pill" style="--c:#e11d48">No answer</span> ':"")+qnum(m)+esc(m.q)+'</p>'+qimg(m)+m.o.map(function(o,j){return'<div class="mu">'+(j===m.a?"✓ ":"")+"ABCDE"[j]+". "+esc(o)+'</div>'}).join("")+'<div class="row" style="margin-top:8px"><button class="btn g s" onclick="mcqEdit(\''+m.id+'\')">Edit</button><button class="btn g s" onclick="delM(\''+m.id+'\')">Delete</button></div></div>'})}
 else if(!ks.length)h+=box(s.c,"📭","Empty section","Use + Section to make folders or + MCQ to add questions.","",0,0)}
-else{if(!ks.length)h+=box("#e6168a","🗂️","No sections yet","Tap + Section to make your first one.","",0,0);
-h+='<div class="g2" style="margin-top:12px">'+box("#e6168a","🎯","Mixed test","20 random MCQs","ALL","start('*')",0)+box("#f59e0b","🔖","Bookmarked","Questions you saved",D.bm.length+" SAVED","start('bm')",0)+'</div><div style="height:12px"></div>'+box("#e11d48","🔁","Wrong answers","Retry what you missed","REVISE","start('wrong')",1)}
+else{if(!ks.length)h+=box("#e6168a","🗂️","No sections yet","Tap + Section to make your first one.","",0,0)}
 return h}
 function start(k){var a=k.indexOf("s:")===0?ids(k.slice(2)):[];var p=D.mcq.filter(function(m){if(k==="*")return dOK(m);if(k==="bm")return D.bm.indexOf(m.id)>-1;if(k==="wrong")return isWrong(m.id);if(k==="rev")return isWrong(m.id)||D.bm.indexOf(m.id)>-1;if(k.indexOf("p:")===0)return m.src===k.slice(2);return a.indexOf(m.sec)>-1&&dOK(m)});
 p=p.filter(function(m){return m.a>=0});if(!p.length){alert("No MCQs with answers here yet. Add or import some first.");return}
@@ -229,15 +261,25 @@ return '<h2 class="t">'+(n.id?"Edit note":"New note")+'</h2><select id="ns">'+SU
 function saveNote(){var t=$("nt").value.trim();if(!t){alert("Add a title first.");return}var n=D.notes.filter(function(x){return x.id===Q})[0];if(!n){n={id:uid()};D.notes.push(n)}n.title=t;n.body=$("nb").value;n.s=$("ns").value;n.t=Date.now();save();go("notes")}
 function delNote(){if(!confirm("Delete this note?"))return;D.notes=D.notes.filter(function(x){return x.id!==Q});save();go("notes")}
 var SF,EMS=["🏫","📚","🧠","📝","🎯","🧪","📖","⭐","🧬","⚡","🏥","📋"],COLS=[["Pink","#e6168a"],["Green","#0d9f6e"],["Blue","#2563eb"],["Orange","#f59e0b"],["Purple","#7c3aed"],["Cyan","#06b6d4"],["Red","#e11d48"]];
-function secform(){var f=SF;return '<h2 class="t">'+(f.id?"Edit section":"New section")+'</h2>'+(f.p&&!f.id?'<div class="card mu">Inside: <b>'+esc(path(f.p))+'</b></div>':"")+'<div class="box" style="--c:'+f.c+'"><input id="sn" placeholder="Section name, for example KIPS" value="'+esc(f.name)+'"><div class="mu" style="margin-bottom:6px">Icon</div><select id="se">'+EMS.map(function(e){return '<option'+(e===f.em?" selected":"")+'>'+e+'</option>'}).join("")+'</select><div class="mu" style="margin-bottom:6px">Colour</div><select id="sc">'+COLS.map(function(c){return '<option value="'+c[1]+'"'+(c[1]===f.c?" selected":"")+'>'+c[0]+'</option>'}).join("")+'</select><div class="row"><button class="btn" onclick="saveSec()">Save section</button><button class="btn g" onclick="'+gp(f.id||f.p)+'">Cancel</button></div></div>'}
+function secform(){var f=SF;return '<h2 class="t">'+(f.id?"Edit section":"New section")+'</h2>'+(f.p&&!f.id?'<div class="card mu">Inside: <b>'+esc(path(f.p))+'</b></div>':"")+'<div class="box" style="--c:'+f.c+'"><input id="sn" placeholder="Section name, for example KIPS" value="'+esc(f.name)+'"><div class="mu" style="margin-bottom:6px">Icon</div><select id="se">'+EMS.map(function(e){return '<option'+(e===f.em?" selected":"")+'>'+e+'</option>'}).join("")+'</select><div class="mu" style="margin-bottom:6px">Colour</div><select id="sc">'+COLS.map(function(c){return '<option value="'+c[1]+'"'+(c[1]===f.c?" selected":"")+'>'+c[0]+'</option>'}).join("")+'</select><div class="row"><button class="btn" onclick="saveSec()">Save section</button><button class="btn g" onclick="'+gm(f.id||f.p)+'">Cancel</button></div></div>'}
 function saveSec(){var n=$("sn").value.trim();if(!n){alert("Add a section name first.");return}
 if(SF.id){var x=secById(SF.id);x.name=n;x.em=$("se").value;x.c=$("sc").value}else{SF.id=uid();D.sec.push({id:SF.id,name:n,em:$("se").value,c:$("sc").value,p:SF.p||null});SF.id=SF.p}
-save();go("practice",SF.id)}
-function secDel(id){var x=secById(id),a=ids(id),c=cnt(id);if(!confirm("Delete "+x.name+(a.length>1?" and its sections":"")+(c?" with "+c+" MCQs":"")+"?"))return;D.sec=D.sec.filter(function(y){return a.indexOf(y.id)<0});D.mcq=D.mcq.filter(function(m){return a.indexOf(m.sec)<0});save();go("practice",x.p)}
-function mcqadd(){var s=secById(Q);if(!s)return practice();var ok=window._ok;window._ok=0;
-return '<h2 class="t">Add MCQ</h2><div class="card mu">To: <b>'+esc(path(Q))+'</b> '+(ok?'<span class="chip">Saved</span>':"")+'</div><div class="box" style="--c:'+s.c+'"><textarea id="mq" style="min-height:70px" placeholder="Question"></textarea><input id="m0" placeholder="Option A"><input id="m1" placeholder="Option B"><input id="m2" placeholder="Option C"><input id="m3" placeholder="Option D"><select id="ma"><option value="0">Correct: A</option><option value="1">Correct: B</option><option value="2">Correct: C</option><option value="3">Correct: D</option></select><input id="me" placeholder="Explanation (optional)"><select id="md"><option>Medium</option><option>Easy</option><option>Hard</option></select><div class="row"><button class="btn" onclick="addM(1)">Save and add another</button><button class="btn g" onclick="addM(0)">Save and close</button></div></div>'}
-function addM(more){var q=$("mq").value.trim(),o=[0,1,2,3].map(function(i){return $("m"+i).value.trim()});if(!q||o.some(function(x){return!x})){alert("Fill the question and all four options.");return}
-D.mcq.push({id:uid(),sec:Q,q:q,o:o,a:+$("ma").value,e:$("me").value.trim(),d:$("md").value});save();if(more){window._ok=1;render()}else go("practice",Q)}
+save();go("imp",SF.id)}
+function secDel(id){var x=secById(id),a=ids(id),c=cnt(id);if(!confirm("Delete "+x.name+(a.length>1?" and its sections":"")+(c?" with "+c+" MCQs":"")+"?"))return;D.sec=D.sec.filter(function(y){return a.indexOf(y.id)<0});D.mcq=D.mcq.filter(function(m){return a.indexOf(m.sec)<0});save();go("imp",x.p)}
+function mcqadd(){var s=secById(Q);if(!s)return imp();var ok=window._ok;window._ok=0;var m=MQ&&MQ.id?mcqById(MQ.id):null,ed=!!m,no=m?Math.max(4,m.o.length):4,L="ABCDE",ins="",sel='<select id="ma">';
+for(var i=0;i<no;i++)ins+='<input id="m'+i+'" placeholder="Option '+L[i]+'" value="'+esc(m&&m.o[i]!==undefined?m.o[i]:"")+'">';
+for(var j=0;j<no;j++)sel+='<option value="'+j+'"'+(m&&m.a===j?" selected":"")+'>Correct: '+L[j]+'</option>';sel+='</select>';
+var dif='<select id="md">'+(m&&!m.d?'<option value="">Difficulty: not set</option>':"")+["Medium","Easy","Hard"].map(function(x){return'<option'+(m&&m.d===x?" selected":"")+'>'+x+'</option>'}).join("")+'</select>';
+return'<h2 class="t">'+(ed?"Edit MCQ":"Add MCQ")+'</h2><div class="card mu">'+(ed?"In":"To")+': <b>'+esc(path(Q))+'</b> '+(ok?'<span class="chip">Saved</span>':"")+'</div><div class="box" style="--c:'+s.c+'"><textarea id="mq" style="min-height:70px" placeholder="Question">'+esc(m?m.q:"")+'</textarea>'+ins+sel+'<input id="me" placeholder="Explanation (optional)" value="'+esc(m&&m.e?m.e:"")+'">'+dif+'<div class="row">'+(ed?'<button class="btn" onclick="addM(0)">Save changes</button><button class="btn g" onclick="MQ=null;'+gm(Q)+'">Cancel</button>':'<button class="btn" onclick="addM(1)">Save and add another</button><button class="btn g" onclick="addM(0)">Save and close</button>')+'</div></div>'}
+function addM(more){var ed=MQ&&MQ.id?mcqById(MQ.id):null,no=ed?Math.max(4,ed.o.length):4,q=$("mq").value.trim(),raw=[],o,i;
+for(i=0;i<no;i++)raw.push($("m"+i).value.trim());
+if(ed){var e=raw.length;while(e>2&&!raw[e-1])e--;o=raw.slice(0,e);if(!q||o.length<2||o.some(function(x){return!x})){alert("Fill the question and at least two options, with no empty option in the middle.");return}}
+else{o=raw;if(!q||o.some(function(x){return!x})){alert("Fill the question and all four options.");return}}
+var an=+$("ma").value;if(an>=o.length){alert("The correct answer points to an empty option.");return}
+var d=$("md").value||undefined,ex=$("me").value.trim(),sc=ed?ed.sec:Q,k=mkey(q,o);
+if(D.mcq.some(function(m){return m.sec===sc&&(!ed||m.id!==ed.id)&&mkey(m.q,m.o)===k})){alert("This MCQ is already in this section.");return}
+if(ed){var chg=ed.a!==an;ed.q=q;ed.o=o;ed.a=an;ed.e=ex;ed.d=d;delete ed.vf;if(chg)delete ed.ks;save();MQ=null;go("imp",ed.sec);return}
+D.mcq.push({id:uid(),sec:Q,q:q,o:o,a:an,e:ex,d:d});save();if(more){window._ok=1;render()}else go("imp",Q)}
 var PLN={};
 function delM(id){D.mcq=D.mcq.filter(function(m){return m.id!==id});try{sdel("i",id)}catch(e){}save();render()}
 /* ---------- past papers ---------- */
@@ -252,7 +294,7 @@ var BC={PMC:"#e6168a",NUMS:"#0d9f6e",AKU:"#2563eb",FMDC:"#f59e0b",UHS:"#7c3aed",
 function papers(){var h='<div class="row"><h2 class="t sp">Past Papers</h2>'+(ADMIN?'<button class="btn" onclick="go(\'paperadd\')">Add paper</button>':"")+'</div>';
 if(!D.papers.length)return h+box("#06b6d4","📋","No papers yet","Add a past paper PDF. It stays on this device and opens without internet.","",0,0);
 D.papers.slice().sort(function(a,b){return b.y-a.y}).forEach(function(p){var n=D.mcq.filter(function(m){return m.src===p.id}).length;
-h+='<div class="box" style="--c:'+BC[p.b]+'"><div class="em">📋</div><h3>'+esc(p.t)+'</h3><p>'+esc(p.b)+' · '+p.y+(p.has?"":" · no PDF")+'</p><div class="row"><span class="pill">'+n+' MCQS</span></div><div class="row" style="margin-top:10px">'+(p.has?'<button class="btn s" onclick="openP(\''+p.id+'\')">Open PDF</button><button class="btn g s" onclick="extractP(\''+p.id+'\')">Extract MCQs</button>':"")+(n?'<button class="btn g s" onclick="start(\'p:'+p.id+'\')">Practice</button><button class="btn g s" onclick="mockStart(\'p:'+p.id+'\',0,0)">Simulate</button>':"")+''+(ADMIN?'<button class="btn g s" onclick="delP(\''+p.id+'\')">Delete</button>':"")+'</div></div>'});return h}
+h+='<div class="box" style="--c:'+BC[p.b]+'"><div class="em">📋</div><h3>'+esc(p.t)+'</h3><p>'+esc(p.b)+' · '+p.y+(p.has?"":" · no PDF")+'</p><div class="row"><span class="pill">'+n+' MCQS</span></div><div class="row" style="margin-top:10px">'+(p.has?'<button class="btn s" onclick="openP(\''+p.id+'\')">Open PDF</button>'+(canMgr()?'<button class="btn g s" onclick="extractP(\''+p.id+'\')">Extract MCQs</button>':""):"")+(n?'<button class="btn g s" onclick="start(\'p:'+p.id+'\')">Practice</button><button class="btn g s" onclick="mockStart(\'p:'+p.id+'\',0,0)">Simulate</button>':"")+''+(ADMIN?'<button class="btn g s" onclick="delP(\''+p.id+'\')">Delete</button>':"")+'</div></div>'});return h}
 function paperAdd(){var y=[];for(var i=2027;i>=2015;i--)y.push('<option>'+i+'</option>');
 return '<h2 class="t">Add past paper</h2><div class="box" style="--c:#06b6d4"><input id="pt" placeholder="Title, for example NUMS MDCAT 2025"><select id="pb">'+BOARDS.map(function(b){return '<option>'+b+'</option>'}).join("")+'</select><select id="py">'+y.join("")+'</select><div class="mu" style="margin-bottom:6px">PDF file (optional)</div><input id="pf" type="file" accept="application/pdf"><div class="row"><button class="btn" onclick="saveP()">Save paper</button><button class="btn g" onclick="go(\'papers\')">Cancel</button></div></div>'}
 function saveP(){var t=$("pt").value.trim(),f=$("pf").files[0];if(!t){alert("Add a title first.");return}var p={id:uid(),t:t,b:$("pb").value,y:+$("py").value,has:!!f};
@@ -346,17 +388,32 @@ grabImages(IM.doc,IM.info,[q],m,true,null).then(function(){IM.busy="";render()},
 var IMC={};
 function hydrate(){var l=document.querySelectorAll("img[data-im]");for(var i=0;i<l.length;i++)(function(el){var id=el.getAttribute("data-im");if(IMC[id]){el.src=IMC[id];return}sget("i",id).then(function(v){if(v){var n=0;for(var k in IMC)n++;if(n>60)IMC={};IMC[id]=v;el.src=v}else el.style.display="none"},function(){el.style.display="none"})})(l[i])}
 function qimg(m){return m.im?'<img class="qi" data-im="'+m.id+'" alt="diagram" onclick="zoomImg(this)" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">':""}
-function zoomImg(el){var d=document.createElement("div");d.style.cssText="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:10px";d.onclick=function(){d.remove()};var i=document.createElement("img");i.src=el.src;i.style.cssText="max-width:100%;max-height:100%;background:#fff;border-radius:8px";d.appendChild(i);document.body.appendChild(d)}
+function zoomImg(el){try{window.event.stopPropagation()}catch(e){}var d=document.createElement("div");d.style.cssText="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:10px";d.onclick=function(){d.remove()};var i=document.createElement("img");i.src=el.src;i.style.cssText="max-width:100%;max-height:100%;background:#fff;border-radius:8px";d.appendChild(i);document.body.appendChild(d)}
 function qnum(m){return(m.n?'<span class="pill" style="--c:#6e6a80">Q'+m.n+'</span> ':"")+(m.ks?'<span class="pill" style="--c:#7c3aed">\uD83D\uDCD6 p.'+m.ks.p+(m.ks.c==="m"?" ?":"")+'</span> ':"")}
-function extractP(id){go("imp",id);IM.items=[];fget(id).then(function(b){if(!b)return alert("PDF not found.");b.arrayBuffer().then(function(buf){runExtract(buf,id)})})}
-function imp(){if(!D.sec.length)return '<h2 class="t">Import MCQs</h2>'+box("#f59e0b","🗂️","Create a section first","Go to Practice and tap + Section.","",0,0);var pp=Q?D.papers.filter(function(p){return p.id===Q})[0]:null;
-var h='<h2 class="t">Import MCQs</h2>'+howTo()+(pp?'<div class="card mu">From paper: <b>'+esc(pp.t)+'</b></div>':"")+'<div class="box" style="--c:#f59e0b"><div class="mu" style="margin-bottom:6px">Save into section</div><select id="is" onchange="IM.sec=this.value">'+D.sec.map(function(x){return '<option value="'+x.id+'"'+(x.id===IM.sec?" selected":"")+'>'+esc(path(x.id))+'</option>'}).join("")+'</select>'+(pp?"":'<label class="mu" style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" style="width:auto;margin:0" onchange="IM.nodg=!this.checked"'+(IM.nodg?"":" checked")+'> Capture diagrams and pictures from the PDF (a bit slower)</label><div class="mu" style="margin-bottom:6px">Pick a PDF</div><input id="if" type="file" accept="application/pdf" onchange="pickPdf(this)"><textarea id="it" placeholder="Or paste text here: 1. Question... A) ... B) ... C) ... D) ... Answer: B"></textarea><button class="btn" onclick="IM.items=parseMCQ($(\'it\').value);if(!IM.items.length)alert(\'No MCQs found in that text.\');render()">Find MCQs in text</button>')+(IM.busy?'<div class="mu" id="imb" style="margin-top:8px">'+IM.busy+'</div>':"")+'</div>';
+function extractP(id){IM.dt="";IM.fname="";go("impx",id);IM.items=[];fget(id).then(function(b){if(!b)return alert("PDF not found.");b.arrayBuffer().then(function(buf){runExtract(buf,id)})})}
+function impx(){if(!D.sec.length)return '<h2 class="t">Upload PDF</h2>'+box("#f59e0b","🗂️","Create a section first","Go to Import MCQs and tap + Section.","",0,0);var pp=Q?D.papers.filter(function(p){return p.id===Q})[0]:null;
+var h='<div class="row" style="margin-bottom:8px"><button class="btn g s" onclick="'+(pp?"go('papers')":gm(IM.sec||null))+'">‹ Back</button></div><h2 class="t">Upload PDF</h2>'+howTo()+(pp?'<div class="card mu">From paper: <b>'+esc(pp.t)+'</b></div>':"")+'<div class="box" style="--c:#f59e0b"><div class="mu" style="margin-bottom:6px">Save into section</div><select id="is" onchange="IM.sec=this.value">'+D.sec.map(function(x){return '<option value="'+x.id+'"'+(x.id===IM.sec?" selected":"")+'>'+esc(path(x.id))+'</option>'}).join("")+'</select>'+docField()+(pp?"":'<label class="mu" style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" style="width:auto;margin:0" onchange="IM.nodg=!this.checked"'+(IM.nodg?"":" checked")+'> Capture diagrams and pictures from the PDF (a bit slower)</label><div class="mu" style="margin-bottom:6px">Pick a PDF</div><input id="if" type="file" accept="application/pdf" onchange="pickPdf(this)"><textarea id="it" placeholder="Or paste text here: 1. Question... A) ... B) ... C) ... D) ... Answer: B"></textarea><button class="btn" onclick="IM.fname=\'\';IM.items=parseMCQ($(\'it\').value);if(!IM.items.length)alert(\'No MCQs found in that text.\');render()">Find MCQs in text</button>')+(IM.busy?'<div class="mu" id="imb" style="margin-top:8px">'+IM.busy+'</div>':"")+'</div>';
 if(IM.items.length){var ok=IM.items.filter(function(q){return q.a>=0}).length,np=IM.items.filter(function(q){return q.img}).length;h+='<div class="card"><b>'+IM.items.length+' MCQs found (all shown below, numbered)</b><div class="mu">'+ok+' have an answer'+(np?', '+np+' have a diagram picture':"")+'. Set the rest, or leave them for the AI to answer from your books.</div>'+(IM.items.gaps&&IM.items.gaps.length?'<div class="mu" style="color:#e11d48;margin-top:6px">Could not read '+IM.items.gaps.length+' question number(s): '+IM.items.gaps.slice(0,40).join(", ")+(IM.items.gaps.length>40?" ...":"")+'. Their options may be images or in an unusual format.</div>':"")+'<div class="row" style="margin-top:8px"><button class="btn" onclick="doImp()">Import</button><button class="btn g" onclick="IM.items=[];render()">Clear</button></div></div>';
 IM.items.forEach(function(q,i){h+='<div class="box" style="--c:'+(q.a>=0?"#0d9f6e":"#e11d48")+'"><p style="color:inherit;margin:0 0 6px"><b>Q'+(q.n||i+1)+'.</b> <b>'+esc(q.q)+'</b></p>'+q.o.map(function(o,j){return '<div class="mu">'+"ABCDE"[j]+'. '+esc(o)+'</div>'}).join("")+impic(q,i)+'<div class="row" style="margin-top:8px"><select style="margin:0;width:auto" onchange="IM.items['+i+'].a=+this.value;render()"><option value="-1">Set answer</option>'+q.o.map(function(o,j){return '<option value="'+j+'"'+(q.a===j?" selected":"")+'>Correct: '+"ABCDE"[j]+'</option>'}).join("")+'</select><button class="btn g s" onclick="IM.items.splice('+i+',1);render()">Remove</button></div></div>'});}
 return h}
-function pickPdf(el){var f=el.files[0];if(f)f.arrayBuffer().then(function(b){runExtract(b,"")})}
-function doImp(){var sc=$("is").value,n=0,jobs=[],np=0;IM.items.forEach(function(q){if(q.o.length>=2){var m={id:uid(),sec:sc,q:q.q,o:q.o,a:q.a,e:q.e||"",n:q.n||(n+1),src:IM.src||undefined};if(q.img){m.im=1;np++;jobs.push(sput("i",m.id,q.img).catch(function(){m.im=0;np--}))}D.mcq.push(m);n++}});
-var skipped=IM.items.length-n,from=IM.src;Promise.all(jobs).then(function(){save();IM.items=[];IM.doc=null;IM.info=null;alert(n+" MCQs imported."+(np?" "+np+" with diagram pictures.":"")+(skipped?" "+skipped+" skipped (fewer than 2 options).":""));go(from?"papers":"practice",from?null:sc)})}
+function pickPdf(el){var f=el.files[0];if(f){IM.fname=f.name.replace(/\.pdf$/i,"").trim();f.arrayBuffer().then(function(b){runExtract(b,"")})}}
+function docField(){var ph=IM.fname||"e.g. KIPS Mock Test 1";return'<div class="mu" style="margin:10px 0 6px">Document Title</div><input id="dti" type="text" maxlength="120" autocomplete="off" autocapitalize="words" enterkeyhint="done" placeholder="'+esc(ph)+'" value="'+esc(IM.dt||"")+'" oninput="IM.dt=this.value"><div class="mu" style="margin:-4px 0 10px">The name of this imported document. Leave it empty to use '+(IM.src?"the paper name":IM.fname?"the file name":"the file name, or Pasted MCQs with the date")+'. You can rename it later.</div>'}
+function docTitle(){var el=$("dti"),t=String((el?el.value:IM.dt)||"").replace(/\s+/g," ").trim();if(t)return t.slice(0,120);
+ if(IM.src){var p=D.papers.filter(function(x){return x.id===IM.src})[0];if(p&&p.t)return String(p.t).slice(0,120)}
+ if(IM.fname)return IM.fname.slice(0,120);
+ var d=new Date();return"Pasted MCQs \u00b7 "+d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})+" "+d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+function docHead(m,pd,dc){var di=m.di||"";if(di===(pd||""))return"";
+ if(!di)return'<div class="mu" style="margin:14px 0 6px"><b>📝 Other MCQs</b> (added one by one)</div>';
+ if(window.DEd===di)return'<div class="box" style="--c:#f59e0b;margin-top:14px"><div class="mu" style="margin-bottom:6px">Document Title</div><input id="dte" type="text" maxlength="120" autocomplete="off" autocapitalize="words" enterkeyhint="done" value="'+esc(m.dt||"")+'" onkeydown="if(event.key===\'Enter\')docSave(\''+di+'\')"><div class="row"><button class="btn s" onclick="docSave(\''+di+'\')">Save title</button><button class="btn g s" onclick="docCancel()">Cancel</button></div></div>';
+ return'<div class="box" style="--c:#f59e0b;margin-top:14px"><div class="row"><span style="font-size:22px">📄</span><div class="sp" style="min-width:0"><b style="word-break:break-word">'+esc(m.dt||"Untitled document")+'</b><div class="mu">'+dc[di]+' MCQs from this document</div></div><button class="btn g s" onclick="docEdit(\''+di+'\')">Edit title</button></div></div>'}
+function docEdit(di){window.DEd=di;render();setTimeout(function(){var e=$("dte");if(e){e.focus();e.select()}},60)}
+function docCancel(){window.DEd=null;render()}
+function docSave(di){var e=$("dte"),t=e?e.value.replace(/\s+/g," ").trim().slice(0,120):"";if(!t){alert("Type a title, or tap Cancel.");return}
+ D.mcq.forEach(function(m){if(m.di===di)m.dt=t});window.DEd=null;save();render()}
+function mkey(q,o){return String(q+"|"+o.join("|")).normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}|]+/gu," ").replace(/\s+/g," ").trim()}
+function doImp(){var sc=$("is").value,dti=uid(),dtt=docTitle(),n=0,jobs=[],np=0,dup=0,have={};D.mcq.forEach(function(m){if(m.sec===sc)have[mkey(m.q,m.o)]=1});
+IM.items.forEach(function(q){if(q.o.length>=2){var k=mkey(q.q,q.o);if(have[k]){dup++;return}have[k]=1;var m={id:uid(),sec:sc,q:q.q,o:q.o,a:q.a,e:q.e||"",n:q.n||(n+1),src:IM.src||undefined,di:dti,dt:dtt};if(q.img){m.im=1;np++;jobs.push(sput("i",m.id,q.img).catch(function(){m.im=0;np--}))}D.mcq.push(m);n++}});
+var skipped=IM.items.length-n-dup,from=IM.src;Promise.all(jobs).then(function(){save();IM.items=[];IM.doc=null;IM.info=null;IM.dt="";IM.fname="";alert(n+" MCQs imported."+(np?" "+np+" with diagram pictures.":"")+(dup?" "+dup+" duplicate"+(dup>1?"s":"")+" skipped (already in this section).":"")+(skipped?" "+skipped+" skipped (fewer than 2 options).":"")+(n?" Document: \u201c"+dtt+"\u201d":""));go(from?"papers":"imp",from?null:sc)})}
 function stats(){var a=stat(),t=D.log.filter(function(x){return x.dt}),avg=t.length?Math.round(t.reduce(function(q,x){return q+x.dt},0)/t.length):0,best=D.mocks.reduce(function(b,r){return r.pct>b?r.pct:b},0);
 var h='<h2 class="t">Analytics</h2><div class="hero"><h2>'+a.p+'%</h2><p>'+a.ok+' correct · '+(a.n-a.ok)+' wrong'+(avg?' · avg '+avg+' s per MCQ':"")+'</p></div><div class="g2"><div class="box" style="--c:#0d9f6e"><h3>'+best+'%</h3><p>Best mock score</p></div><div class="box" style="--c:#2563eb"><h3>'+D.mocks.length+'</h3><p>Mock tests</p></div></div><div style="height:12px"></div>';
 var r=D.sec.map(function(x){return{s:x,x:stat(x.id)}}).filter(function(o){return o.x.n>=3}).sort(function(p,q){return p.x.p-q.x.p});
@@ -365,13 +422,13 @@ function walk(id,d){kids(id).forEach(function(s){var x=stat(s.id);h+='<div class
 walk(null,0);
 if(D.mocks.length)h+='<h3>Mock history</h3>'+D.mocks.slice(-10).reverse().map(function(m){return '<div class="card row"><span>'+fmt(m.t)+'</span><span class="sp">'+m.sc+' / '+m.n+'</span><b>'+m.pct+'%</b></div>'}).join("");
 return h}
-function backup(){return '<h2 class="t">Backup & Restore</h2><div class="box" style="--c:#7c3aed"><p>Copy this text and keep it safe. Paste it back later to restore MCQs, notes and progress. PDF files are not included.</p><textarea id="bk" readonly onclick="this.select()">'+esc(JSON.stringify(D))+'</textarea><button class="btn g" onclick="var t=$(\'bk\');t.select();try{document.execCommand(\'copy\')}catch(e){}">Copy backup</button></div>'+(ADMIN?syncBox():"")+'<div class="box" style="--c:#e6168a"><b>Restore</b><div style="height:8px"></div><textarea id="rs" placeholder="Paste backup here"></textarea><button class="btn" onclick="rest()">Restore data</button></div>'}
+function backup(){return '<h2 class="t">Backup & Restore</h2><div class="box" style="--c:#7c3aed"><p>Copy this text and keep it safe. Paste it back later to restore MCQs, notes and progress. PDF files are not included.</p><textarea id="bk" readonly onclick="this.select()">'+esc(JSON.stringify(ownD()))+'</textarea><button class="btn g" onclick="var t=$(\'bk\');t.select();try{document.execCommand(\'copy\')}catch(e){}">Copy backup</button></div>'+(ADMIN?syncBox():"")+'<div class="box" style="--c:#e6168a"><b>Restore</b><div style="height:8px"></div><textarea id="rs" placeholder="Paste backup here"></textarea><button class="btn" onclick="rest()">Restore data</button></div>'}
 function syncBox(){return '<div class="box" style="--c:#06b6d4"><b>Move MCQs between apps</b><p class="mu" style="margin:6px 0 10px">Copy this text, then paste it into the other app under "Add MCQs from another app". Your progress is not touched.</p><textarea id="cx" readonly onclick="this.select()">'+esc(JSON.stringify({sec:D.sec,mcq:D.mcq,notes:D.notes}))+'</textarea><button class="btn g s" onclick="var t=$(\'cx\');t.select();try{document.execCommand(\'copy\')}catch(e){}">Copy MCQs and notes</button><div style="height:14px"></div><b>Add MCQs from another app</b><textarea id="mg" placeholder="Paste copied MCQs and notes here"></textarea><button class="btn s" onclick="mergeIn()">Add to this app</button></div>'}
 function mergeIn(){try{var d=JSON.parse($("mg").value);if(!d.mcq)throw 0;var hs={},hm={},hn={};D.sec.forEach(function(x){hs[x.id]=1});D.mcq.forEach(function(x){hm[x.id]=x});D.notes.forEach(function(x){hn[x.id]=1});var a=0,u=0;
 (d.sec||[]).forEach(function(x){if(!hs[x.id])D.sec.push(x)});
 d.mcq.forEach(function(x){var o=hm[x.id];if(!o){D.mcq.push(x);a++}else if(o.a<0&&x.a>=0){o.a=x.a;o.e=x.e||o.e;u++}});
 (d.notes||[]).forEach(function(x){if(!hn[x.id])D.notes.push(x)});save();alert(a+" MCQs added, "+u+" answers updated.");render()}catch(e){alert("That text is not valid.")}}
-function rest(){try{var d=JSON.parse($("rs").value);if(!d.mcq||!d.notes)throw 0;D=d;migrate();save();alert("Restored.");go("home")}catch(e){alert("That backup text is not valid.")}}
+function rest(){try{var d=JSON.parse($("rs").value);if(!d.mcq||!d.notes)throw 0;D=d;migrate();if(BNK.B&&!isAdm())bankApply(BNK.B);save();alert("Restored.");go("home")}catch(e){alert("That backup text is not valid.")}}
 
 /* ---------- mock tests ---------- */
 var M=null;
@@ -439,7 +496,8 @@ D.papers.filter(function(p){return has(p.t)}).forEach(function(p){h+='<div class
 D.mcq.filter(function(m){return has(m.q+" "+m.o.join(" ")+" "+(m.e||""))}).slice(0,25).forEach(function(m){h+='<div class="card"><div class="mu">'+esc(path(m.sec))+'</div><b>'+esc(m.q)+'</b><div class="mu">Answer: '+"ABCDE"[m.a]+'. '+esc(m.o[m.a])+'</div></div>'});
 return h||'<div class="mu">Nothing found.</div>'}
 function settings(){var s=D.set;function sel(id,v,c){return '<select id="'+id+'" onchange="setS()">'+v.map(function(x){return '<option'+(String(x)===String(c)?" selected":"")+'>'+x+'</option>'}).join("")+'</select>'}
-return '<h2 class="t">Settings</h2><div class="box" style="--c:#7c3aed"><div class="mu">Negative marking per wrong answer (mock tests)</div>'+sel("sn2",[0,0.25,0.5,1],s.neg)+'<div class="mu">Mock test seconds per MCQ</div>'+sel("ss",[30,45,60,72,90],s.sec)+'<div class="mu">Daily MCQ target</div>'+sel("sg",[10,20,30,50,100,150,200],s.goal)+'<div class="mu">Daily study minutes target</div>'+sel("sm",[30,60,90,120,180,240,300],s.min)+'<div class="mu">Practice difficulty</div>'+sel("sd",["All","Easy","Medium","Hard"],s.diff)+'<div class="mu">AI answers</div><select id="so" onchange="setS()"><option value="1"'+(s.only?" selected":"")+'>Only from my material</option><option value="0"'+(s.only?"":" selected")+'>Allow general knowledge</option></select><button class="btn g" onclick="theme()">Switch dark or light</button></div>'+instBanner()+shareBox()+'<div class="box" style="--c:#e11d48"><b>Data</b><div class="row" style="margin-top:8px"><button class="btn g s" onclick="if(confirm(\'Clear mock history?\')){D.mocks=[];save();render()}">Clear mock history</button><button class="btn g s" onclick="if(confirm(\'Reset all progress?\')){D.log=[];D.mast=[];save();render()}">Reset progress</button></div></div>'}
+return '<h2 class="t">Settings</h2>'+(window.MDUP?MDUP.card():"")+acctBox()+bankCard()+'<div class="box" style="--c:#7c3aed"><div class="mu">Negative marking per wrong answer (mock tests)</div>'+sel("sn2",[0,0.25,0.5,1],s.neg)+'<div class="mu">Mock test seconds per MCQ</div>'+sel("ss",[30,45,60,72,90],s.sec)+'<div class="mu">Daily MCQ target</div>'+sel("sg",[10,20,30,50,100,150,200],s.goal)+'<div class="mu">Daily study minutes target</div>'+sel("sm",[30,60,90,120,180,240,300],s.min)+'<div class="mu">Practice difficulty</div>'+sel("sd",["All","Easy","Medium","Hard"],s.diff)+'<div class="mu">AI answers</div><select id="so" onchange="setS()"><option value="1"'+(s.only?" selected":"")+'>Only from my material</option><option value="0"'+(s.only?"":" selected")+'>Allow general knowledge</option></select><button class="btn g" onclick="theme()">Switch dark or light</button></div>'+instBanner()+shareBox()+'<div class="box" style="--c:#e11d48"><b>Data</b><div class="row" style="margin-top:8px"><button class="btn g s" onclick="if(confirm(\'Clear mock history?\')){D.mocks=[];save();render()}">Clear mock history</button><button class="btn g s" onclick="if(confirm(\'Reset all progress?\')){D.log=[];D.mast=[];save();render()}">Reset progress</button></div></div>'}
+function acctBox(){if(!AUTHON||!USER)return"";var m=canMgr();return'<div class="box" style="--c:'+(m?"#0d9f6e":"#6e6a80")+'"><b>'+(m?"🛡️ Admin account":"🎓 Student account")+'</b><p style="margin:6px 0 0">'+(m?"You can manage sections and MCQs in Import MCQs.":"You can practise MCQs, take tests and track your progress.")+'</p></div><div style="height:12px"></div>'}
 function setS(){D.set={neg:+$("sn2").value,sec:+$("ss").value,goal:+$("sg").value,min:+$("sm").value,diff:$("sd").value,only:+$("so").value};save()}
 function dropSamples(){var n=D.mcq.length;D.mcq=D.mcq.filter(function(m){return!/^s\d$/.test(m.id)});if(D.mcq.length!==n){var g=secById("gen");if(g&&!cnt("gen")&&!kids("gen").length)D.sec=D.sec.filter(function(x){return x.id!=="gen"})}}
 /* ---------- books and AI ---------- */
@@ -582,7 +640,7 @@ function useBk(id){var m=mcqById(id);if(!m||!m.vf)return;m.a=m.vf.a;m.ks={b:m.vf
 function keepMine(id){var m=mcqById(id);if(!m||!m.vf)return;m.vf.keep=1;save();refreshConf()}
 function verifyShow(id){SOLV={list:[],i:0,ok:0,cf:0,miss:0,sk:0,id:id,stop:0,mode:"verify",view:1};go("solve")}
 function solve(){var s=SOLV;if(!s)return practice();var t=s.mode==="book"?"Book answer key":s.mode==="verify"?"Verify with book":"AI answer key";
-return'<h2 class="t">'+t+'</h2><div class="box" style="--c:#7c3aed"><b id="svt">'+(s.view?"Review":"Starting...")+'</b><div class="bar"><i id="svb" style="width:0%;background:#7c3aed"></i></div><div class="mu" id="svs"></div><div class="row" style="margin-top:10px"><button class="btn g" onclick="SOLV.stop=1">Stop</button><button class="btn" onclick="'+gp(s.id)+'">Back</button></div></div><div id="svl">'+(s.mode==="verify"?confHtml(s.id):"")+'</div>'}
+return'<h2 class="t">'+t+'</h2><div class="box" style="--c:#7c3aed"><b id="svt">'+(s.view?"Review":"Starting...")+'</b><div class="bar"><i id="svb" style="width:0%;background:#7c3aed"></i></div><div class="mu" id="svs"></div><div class="row" style="margin-top:10px"><button class="btn g" onclick="SOLV.stop=1">Stop</button><button class="btn" onclick="'+gm(s.id)+'">Back</button></div></div><div id="svl">'+(s.mode==="verify"?confHtml(s.id):"")+'</div>'}
 
 function solveStep(){var s=SOLV;if(!s)return;var up=function(){var e=$("svt");if(e)e.textContent=(s.i>=s.list.length||s.stop)?"Done":"Question "+(s.i+1)+" of "+s.list.length;e=$("svb");if(e)e.style.width=Math.round(s.i/s.list.length*100)+"%";e=$("svs");if(e)e.textContent=s.ok+" answered from your books · "+s.miss+" not found"};up();
 if(s.stop||s.i>=s.list.length){save();return}
@@ -594,10 +652,10 @@ return callAI(p).then(function(t){var j=null;try{j=JSON.parse(t.replace(/```json
 var li=j&&j.found?"ABCDE".indexOf(String(j.answer).trim().charAt(0).toUpperCase()):-1;
 if(li>=0&&li<m.o.length){m.a=li;m.e=(j.explanation||"")+(j.source?" (Source: "+j.source+")":"");s.ok++;save()}else s.miss++;
 s.i++;up();setTimeout(solveStep,200)})}).catch(function(e){var el=$("svs");if(el)el.textContent=e==="noai"?"AI is not available. Open the app from your claude.ai account.":"Stopped: could not reach the AI. Tap Back and try again later.";save()})}
-function upBanner(){if(!ADMIN)return"";return '<div class="box tap" style="--c:#f59e0b" onclick="impTo(null)"><span class="go">→</span><div class="em">📄</div><h3>Upload MCQs PDF</h3><p>Tap here, choose your PDF and pick a section. The MCQs are found for you.</p><span class="pill">'+D.mcq.length+' MCQS SAVED</span></div><div style="height:12px"></div>'}
+function upBanner(){if(!canMgr())return"";return '<div class="box tap" style="--c:#f59e0b" onclick="impTo(null)"><span class="go">→</span><div class="em">📄</div><h3>Upload MCQs PDF</h3><p>Tap here, choose your PDF and pick a section. The MCQs are found for you.</p><span class="pill">'+D.mcq.length+' MCQS SAVED</span></div><div style="height:12px"></div>'}
 function howTo(){return '<div class="box" style="--c:#f59e0b"><b>How to upload your MCQs PDF</b><ol style="margin:8px 0 0;padding-left:20px;line-height:1.7"><li>Make a section first: Practice, then <b>+ Section</b> (for example KIPS).</li><li>Come back here and pick that section below.</li><li>Tap <b>Choose file</b> and select your MCQ PDF. It must be a text PDF, not photos of pages.</li><li>Wait while it reads the PDF. Then check the MCQs. Red ones have no answer, so choose the correct option.</li><li>Tap <b>Import</b>. Then open Practice or Mock Tests.</li></ol><p class="mu" style="margin:8px 0 0">No PDF? Paste the MCQs as text in the box below instead.</p></div><div style="height:12px"></div>'}
 /* ---------- online account (Firebase) and community ---------- */
-var FBK="AIzaSyB4n0k-6w_ulVpUJmVMxJtZ3DjFXU-mH8U",FBP="mdcat-app-f48c2",FBA="mdcatjourney.support41@gmail.com",FB=null,CM={list:null,sec:null,busy:""},SH={id:null,src:""};
+var FBK="AIzaSyB4n0k-6w_ulVpUJmVMxJtZ3DjFXU-mH8U",FBP="mdcat-app-f48c2",FBA="mdcatjourney.support41@gmail.com",ADMIN_EMAILS=["mdcatjourney.support41@gmail.com"],FB=null,CM={list:null,sec:null,busy:""},SH={id:null,src:""};
 var IDT="https://identitytoolkit.googleapis.com/v1/",FSB="https://firestore.googleapis.com/v1/projects/"+FBP+"/databases/(default)/documents";
 function fbErr(e){var m=String(e&&(e.message||e));var mp={EMAIL_EXISTS:"This email already has an account. Please log in.",INVALID_LOGIN_CREDENTIALS:"Wrong email or password.",INVALID_PASSWORD:"Wrong email or password.",EMAIL_NOT_FOUND:"Wrong email or password.",USER_DISABLED:"This account is disabled.",TOO_MANY_ATTEMPTS_TRY_LATER:"Too many tries. Please wait a few minutes.",INVALID_EMAIL:"That email is not valid.",OPERATION_NOT_ALLOWED:"Email sign-in is not turned on in Firebase.",CREDENTIAL_TOO_OLD_LOGIN_AGAIN:"Please log out, log in again, then retry."};
 for(var k in mp)if(m.indexOf(k)===0)return mp[k];if(m.indexOf("WEAK_PASSWORD")===0)return"Use a password of 6 or more characters.";
@@ -607,10 +665,11 @@ function fbSave(){try{if(FB)localStorage.setItem("mdcat_fb",JSON.stringify(FB));
 function fbSet(j,x){var o={uid:j.localId||j.user_id||(FB&&FB.uid),email:j.email||(FB&&FB.email),name:j.displayName||(FB&&FB.name)||"",idToken:j.idToken||j.id_token,rt:j.refreshToken||j.refresh_token||(FB&&FB.rt),exp:Date.now()+(+(j.expiresIn||j.expires_in||3600))*1000,ver:FB?FB.ver:false,created:FB&&FB.created||Date.now()};FB=Object.assign(o,x||{});fbSave();return FB}
 function fbRefresh(){return fetch("https://securetoken.googleapis.com/v1/token?key="+FBK,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=refresh_token&refresh_token="+encodeURIComponent(FB.rt)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw j.error||j;return fbSet(j)})})}
 function fbTok(){if(!FB)return Promise.reject("nologin");if(FB.exp-60000>Date.now())return Promise.resolve(FB.idToken);return fbRefresh().then(function(f){return f.idToken})}
-function isAdm(){return!!(FB&&FB.ver&&FB.email===FBA)}
+function isAdm(){return!!(FB&&FB.ver&&FB.email&&ADMIN_EMAILS.indexOf(String(FB.email).toLowerCase())>-1)}
+function canMgr(){return!!ADMIN&&(!AUTHON||isAdm())}
 function authStart(){if(!AUTHON){go("home");return}try{FB=JSON.parse(localStorage.getItem("mdcat_fb")||"null")}catch(e){FB=null}if(FB&&FB.ver)enterFb();else if(FB){AM="verify";go("auth")}else go("auth")}
 function enterFb(){var u={id:FB.uid,name:FB.name||FB.email,idn:FB.email,created:FB.created||Date.now()},leg=null;if(!localStorage.getItem("mdcat_p_"+u.id)){try{leg=JSON.parse(localStorage.getItem("mdcat_leg")||"null")}catch(e){}}enter(u,leg)}
-function enter(u,leg){USER=u;try{localStorage.setItem("mdcat_cur",u.id)}catch(e){}var p=null;try{p=JSON.parse(localStorage.getItem("mdcat_p_"+u.id)||"null")}catch(e){}setP(p||leg||null);if(leg){try{localStorage.removeItem("mdcat_leg")}catch(e){}}save();H.length=0;net();go("home")}
+function enter(u,leg){USER=u;try{localStorage.setItem("mdcat_cur",u.id)}catch(e){}var p=null;try{p=JSON.parse(localStorage.getItem("mdcat_p_"+u.id)||"null")}catch(e){}setP(p||leg||null);if(leg){try{localStorage.removeItem("mdcat_leg")}catch(e){}}save();H.length=0;net();go("home");bankStart()}
 function logout(){save();USER=null;FB=null;fbSave();try{localStorage.removeItem("mdcat_cur")}catch(e){}setP(null);CM={list:null,sec:null,busy:""};H.length=0;AM="login";net();go("auth")}
 function authMode(m){AM=m;render()}
 function fld(id,label,type,ph,val){return '<div class="mu" style="margin:8px 0 4px">'+label+'</div><input id="'+id+'" type="'+(type||"text")+'" placeholder="'+(ph||"")+'" value="'+esc(val||"")+'" autocomplete="off">'}
@@ -636,6 +695,152 @@ function profile(){if(!USER||!FB)return auth();var a=stat();return '<h2 class="t
 function saveName(){var n=$("pe1").value.trim();if(n.length<2){alert("Please enter your name.");return}fbTok().then(function(t){return idt("accounts:update",{idToken:t,displayName:n,returnSecureToken:false})}).then(function(){FB.name=n;USER.name=n;fbSave();net();alert("Saved.");go("profile")}).catch(function(e){alert(fbErr(e))})}
 function sendReset(){idt("accounts:sendOobCode",{requestType:"PASSWORD_RESET",email:FB.email}).then(function(){alert("Reset link sent to "+FB.email)}).catch(function(e){alert(fbErr(e))})}
 function delAccount(){if(!confirm("Delete your account and your progress on this phone? This cannot be undone."))return;fbTok().then(function(t){return idt("accounts:delete",{idToken:t})}).then(function(){var id=USER.id;try{localStorage.removeItem("mdcat_p_"+id)}catch(e){}logout();AM="signup";render()}).catch(function(e){alert(fbErr(e))})}
+/* ---------- Shared MCQ Bank (Firestore) ----------
+   bankWork/{folder}    admin-only working copy of the whole library (drafts included)
+   bankPub/{folder}     published snapshot students read (only MCQs that have an answer)
+   bankImg/{mcq}        diagram pictures of published MCQs;  bankWorkImg/{mcq} admin-only copy
+   bankMeta/state       {rev}  changes whenever anything published changes (students check this first) */
+var BNK={rev:0,t:0,n:0,chk:0,busy:0,st:"",err:"",B:null},ADM=null,ADMB={busy:0,again:0,tm:0,st:"",err:"",t:0};
+function nb(x){return!x.bk}
+function ownD(){var o={};for(var k in D)o[k]=D[k];o.sec=D.sec.filter(nb);o.mcq=D.mcq.filter(nb);return o}
+function u8(s){try{return new TextEncoder().encode(s).length}catch(e){return s.length*3}}
+function hsh(s){var h=5381,i=s.length;while(i)h=(h*33)^s.charCodeAt(--i);return(h>>>0).toString(36)+":"+s.length}
+function toFs2(o){var f={};for(var k in o){var v=o[k];if(v===undefined||v===null)continue;f[k]=typeof v==="boolean"?{booleanValue:v}:typeof v==="number"?{integerValue:String(Math.round(v))}:{stringValue:String(v)}}return f}
+function fsName(c,id){return"projects/"+FBP+"/databases/(default)/documents/"+c+"/"+id}
+function nfErr(e){return!!e&&(e.status==="NOT_FOUND"||e.code===404)}
+function fsGetDoc(c,id){return fsReq("GET","/"+c+"/"+id)}
+function fsCommit(w){return fsReq("POST",":commit",{writes:w})}
+function fsList(c,mask){var out=[];function pg(tok){return fsReq("GET","/"+c+"?pageSize=300"+(mask||[]).map(function(m){return"&mask.fieldPaths="+m}).join("")+(tok?"&pageToken="+encodeURIComponent(tok):"")).then(function(j){(j.documents||[]).forEach(function(d){out.push(d)});return j.nextPageToken?pg(j.nextPageToken):out})}return pg("")}
+function bankOnlyOnline(){return navigator.onLine!==false}
+/* ======================= STUDENT SIDE: read published MCQs ======================= */
+function bankApply(B){
+ var keepS=D.sec.filter(nb),keepM=D.mcq.filter(nb),have={};B.f.forEach(function(f){have[f.id]=1});
+ var fs=B.f.slice().sort(function(a,b){return(a.ord||0)-(b.ord||0)}),bs=[],bm=[];
+ fs.forEach(function(f){bs.push({id:"b:"+f.id,name:f.name,em:f.em,c:f.c,p:(f.p&&have[f.p])?"b:"+f.p:null,bk:1});
+  f.m.forEach(function(q){if(!q||!q.o||q.o.length<2||q.a<0)return;var m={id:"b:"+q.id,sec:"b:"+f.id,q:q.q,o:q.o,a:q.a,e:q.e||"",bk:1};if(q.d)m.d=q.d;if(q.n)m.n=q.n;if(q.im)m.im=1;bm.push(m)})});
+ D.sec=bs.concat(keepS);D.mcq=bm.concat(keepM)}
+function bankStart(){
+ if(!AUTHON||!FB||!FB.ver)return;
+ if(!window._bkT){window._bkT=1;addEventListener("online",function(){setTimeout(function(){BNK.chk=0;bankSync(false);admSched()},1500)});document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")bankSync(false)});setInterval(function(){bankSync(false)},900000)}
+ if(isAdm()){D.sec=D.sec.filter(nb);D.mcq=D.mcq.filter(nb);admLoad();admSched();return}
+ sget("b","bank_v1").then(function(B){if(B&&B.f){BNK.B=B;BNK.rev=B.rev||0;BNK.t=B.t||0;BNK.n=B.n||0;bankApply(B);if(V==="practice"||V==="home")render()}},function(){}).then(function(){bankSync(false)})}
+function bankSync(force){
+ if(!AUTHON||!FB||!FB.ver||isAdm())return Promise.resolve();
+ if(BNK.busy)return Promise.resolve();
+ if(!bankOnlyOnline()){BNK.st="offline";if(V==="practice")render();return Promise.resolve()}
+ if(!force&&Date.now()-BNK.chk<60000)return Promise.resolve();
+ BNK.busy=1;BNK.chk=Date.now();BNK.st="checking";BNK.err="";if(V==="practice")render();
+ return fsGetDoc("bankMeta","state").then(function(d){return+(fromFs(d).rev||0)},function(e){if(nfErr(e))return 0;throw e})
+ .then(function(rev){if(!force&&rev===BNK.rev&&BNK.B){BNK.st="ok";return}return bankPull(rev)})
+ .then(function(){if(!BNK.err)BNK.st="ok"},function(e){BNK.st="error";BNK.err=(e&&e.status==="PERMISSION_DENIED")?"The shared bank is not set up yet (the admin must publish the Firestore rules).":/Failed to fetch|NetworkError|Load failed|TypeError/i.test(String(e&&(e.message||e)))?"offline":fbErr(e);if(BNK.err==="offline"){BNK.st="offline";BNK.err="";BNK.chk=0}})
+ .then(function(){BNK.busy=0;if(V==="practice"||V==="home"||V==="settings")render()})}
+function bankPull(rev){
+ return fsList("bankPub",["sid","ch","nch","upd"]).then(function(docs){
+  var rem={};docs.forEach(function(d){var o=fromFs(d);if(!o.sid)return;var r=rem[o.sid]=rem[o.sid]||{upd:0,nch:0,ids:[]};r.ids.push(o.id);if(o.ch===0){r.upd=o.upd;r.nch=o.nch}});
+  var cur={};(BNK.B?BNK.B.f:[]).forEach(function(f){cur[f.id]=f});
+  var keep=[],get=[];
+  Object.keys(rem).forEach(function(sid){var r=rem[sid],c=cur[sid],full=r.ids.length===r.nch&&r.nch>0;
+   if(c&&full&&c.upd===r.upd&&c.nch===r.nch)keep.push(c);else if(full)get.push(sid);else if(c)keep.push(c)});
+  var res={},q=get.slice();
+  function one(sid){var r=rem[sid];return Promise.all(r.ids.map(function(i){return fsGetDoc("bankPub",i)})).then(function(ds){
+   var os=ds.map(fromFs).sort(function(a,b){return a.ch-b.ch}),h=os[0],m=[];
+   os.forEach(function(o){m=m.concat(JSON.parse(o.mcqJson||"[]"))});
+   res[sid]={id:sid,name:h.name,em:h.em,c:h.c,p:h.p||"",ord:h.ord||0,upd:h.upd,nch:h.nch,m:m}})}
+  function worker(){var s=q.shift();if(!s)return Promise.resolve();return one(s).then(worker)}
+  return Promise.all([worker(),worker(),worker(),worker()]).then(function(){
+   var f=keep.concat(get.map(function(s){return res[s]})),n=0;f.forEach(function(x){n+=x.m.filter(function(q){return q.a>=0}).length});
+   var B={rev:rev,t:Date.now(),n:n,f:f};
+   return sput("b","bank_v1",B).then(function(){BNK.B=B;BNK.rev=rev;BNK.t=B.t;BNK.n=n;bankApply(B);return bankImgSync(B)})})})}
+function bankImgSync(B){
+ var need=[];B.f.forEach(function(f){f.m.forEach(function(q){if(q.im&&q.a>=0)need.push(q.id)})});var got=0,i=0;
+ function next(){if(i>=need.length)return Promise.resolve();var id=need[i++];
+  return sget("i","b:"+id).then(function(v){if(v)return;return fsGetDoc("bankImg",id).then(function(d){var o=fromFs(d);if(o.data)return sput("i","b:"+id,o.data).then(function(){got++})},function(){})},function(){}).then(next)}
+ return Promise.all([next(),next(),next()]).then(function(){if(got&&(V==="practice"||V==="quiz"))render()})}
+function bankCard(){
+ if(!AUTHON||!FB||!FB.ver||isAdm())return"";
+ var s=BNK.st==="checking"?"Checking for new MCQs...":BNK.st==="offline"||!bankOnlyOnline()?"Offline. You can practise the MCQs already downloaded. New ones download when internet returns.":BNK.err?esc(BNK.err)+(BNK.n?" Your downloaded MCQs still work.":""):BNK.t?BNK.n+" MCQs from the admin · updated "+new Date(BNK.t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Connect to the internet once to download the MCQs.";
+ return'<div class="box" style="--c:#06b6d4"><div class="row"><b class="sp">📡 Shared MCQ Bank</b><button class="btn g s" onclick="bankSync(true)">Sync</button></div><div class="mu" style="margin-top:6px">'+s+'</div></div><div style="height:12px"></div>'}
+/* ======================= ADMIN SIDE: save to Firestore and publish ======================= */
+function admLoad(){try{ADM=JSON.parse(localStorage.getItem("mdcat_bank_adm")||"null")}catch(e){ADM=null}ADM=ADM||{};if(ADM.auto===undefined)ADM.auto=1;["wk","pb","wi","pi","pf"].forEach(function(k){ADM[k]=ADM[k]||{}});return ADM}
+function admSave(){try{localStorage.setItem("mdcat_bank_adm",JSON.stringify(ADM))}catch(e){}}
+function admSched(){if(!AUTHON||!FB||!isAdm())return;clearTimeout(ADMB.tm);ADMB.tm=setTimeout(function(){admSync({})},5000)}
+function bnkOwn(sid,onlyAns){return D.mcq.filter(function(m){return m.sec===sid&&!m.bk&&(!onlyAns||m.a>=0)}).map(function(m){var o={id:m.id,q:m.q,o:m.o,a:m.a};if(m.e)o.e=m.e;if(m.d)o.d=m.d;if(m.n)o.n=m.n;if(m.im)o.im=1;if(!onlyAns){if(m.dt)o.dt=m.dt;if(m.di)o.di=m.di}return o})}
+function bnkFolder(sid,list,struct){var s=secById(sid),rk=kids(s.p||null).filter(nb).indexOf(s);return{sid:sid,s:s,list:list,st:struct?1:0,rk:rk,h:hsh(JSON.stringify([s.name,s.em,s.c,s.p||"",rk,list,struct?1:0]))}}
+function bnkDocs(F,upd){var chunks=[],cur=[],size=0;F.list.forEach(function(q){var b=u8(JSON.stringify(q))+1;if(cur.length&&size+b>380000){chunks.push(cur);cur=[];size=0}cur.push(q);size+=b});chunks.push(cur);
+ return chunks.map(function(c,i){var f={sid:F.sid,ch:i,nch:chunks.length,name:F.s.name,em:F.s.em,c:F.s.c,p:F.s.p||"",ord:F.rk,upd:upd,cnt:c.length,mcqJson:JSON.stringify(c)};if(F.st)f.st="s";return{id:i?F.sid+"~"+i:F.sid,fields:toFs2(f)}})}
+function effPub(sid){var f=ADM.pf[sid];if(f===0)return 0;if(f===1)return 1;if(!ADM.auto)return 0;var s=secById(sid);if(!s||!s.p)return 0;var p=secById(s.p);return p&&!p.bk?effPub(s.p):0}
+function admDesired(){var own=D.sec.filter(nb),full={},st={},out={};
+ own.forEach(function(s){if(effPub(s.id))full[s.id]=1});
+ Object.keys(full).forEach(function(id){var s=secById(id);while(s&&s.p){var p=secById(s.p);if(!p||p.bk)break;if(!full[p.id])st[p.id]=1;s=p}});
+ Object.keys(full).forEach(function(id){out[id]=bnkFolder(id,bnkOwn(id,true),0)});Object.keys(st).forEach(function(id){out[id]=bnkFolder(id,[],1)});return out}
+function admPending(){if(!ADM)return{n:0,del:0};var des=admDesired(),n=0,d=0;Object.keys(des).forEach(function(k){if(!ADM.pb[k]||ADM.pb[k].h!==des[k].h)n++});Object.keys(ADM.pb).forEach(function(k){if(!des[k])d++});return{n:n,del:d}}
+function admFolderState(sid,des){var e=effPub(sid);if(!e)return"draft";var k=ADM.pb[sid],d=des[sid];return(!k||!d||k.h!==d.h)?"pend":"pub"}
+function recon(coll,des,known,w,apply,upd,withMeta){
+ Object.keys(des).forEach(function(sid){var F=des[sid],k=known[sid];if(k&&k.h===F.h)return;
+  var docs=bnkDocs(F,upd);docs.forEach(function(d){w.push({update:{name:fsName(coll,d.id),fields:d.fields}})});
+  for(var i=docs.length;i<(k?k.n:0);i++)w.push({"delete":fsName(coll,sid+(i?"~"+i:""))});
+  apply.push(function(){known[sid]={h:F.h,n:docs.length}})});
+ Object.keys(known).forEach(function(sid){if(des[sid])return;var n=known[sid].n||1;for(var i=0;i<n;i++)w.push({"delete":fsName(coll,sid+(i?"~"+i:""))});apply.push(function(){delete known[sid]})})}
+function commitAll(w){var batches=[],cur=[],size=0;w.forEach(function(x){var b=u8(JSON.stringify(x));if(cur.length&&(cur.length>=200||size+b>4500000)){batches.push(cur);cur=[];size=0}cur.push(x);size+=b});if(cur.length)batches.push(cur);
+ var p=Promise.resolve();batches.forEach(function(b){p=p.then(function(){return fsCommit(b)})});return p}
+function admSync(o){o=o||{};
+ if(!AUTHON||!FB||!isAdm())return Promise.resolve();
+ if(!ADM)admLoad();
+ if(ADMB.busy){ADMB.again=1;return Promise.resolve()}
+ if(!bankOnlyOnline()){ADMB.st="offline";if(V==="imp")render();return Promise.resolve()}
+ ADMB.busy=1;ADMB.st="syncing";ADMB.err="";
+ var upd=Date.now(),w=[],apply=[],own=D.sec.filter(nb),doPub=!!(ADM.auto||o.publish),pubTouched=false;
+ // ---- working copy of everything (drafts included)
+ var wdes={};own.forEach(function(s){wdes[s.id]=bnkFolder(s.id,bnkOwn(s.id,false),0)});
+ if(!own.length&&Object.keys(ADM.wk).length){ADMB.st="error";ADMB.err="Your local library is empty, so the cloud copy was kept untouched.";ADMB.busy=0;if(V==="imp")render();return Promise.resolve()}
+ recon("bankWork",wdes,ADM.wk,w,apply,upd);
+ // ---- published snapshot
+ var des=null,pw=[];
+ if(doPub){des=admDesired();recon("bankPub",des,ADM.pb,pw,apply,upd);if(pw.length)pubTouched=true}
+ // ---- pictures
+ var needW=[],needP=[],delW=[],delP=[],hasIm={},pubIm={};
+ own.forEach(function(s){bnkOwn(s.id,false).forEach(function(q){if(q.im){hasIm[q.id]=1;if(!ADM.wi[q.id])needW.push(q.id)}})});
+ if(doPub)Object.keys(des).forEach(function(k){des[k].list.forEach(function(q){if(q.im){pubIm[q.id]=1;if(!ADM.pi[q.id])needP.push(q.id)}})});
+ Object.keys(ADM.wi).forEach(function(id){if(!hasIm[id])delW.push(id)});
+ if(doPub)Object.keys(ADM.pi).forEach(function(id){if(!pubIm[id])delP.push(id)});
+ function rd(id){return sget("i",id).then(function(v){return v&&v.length<900000?v:null},function(){return null})}
+ return Promise.all(needW.map(rd)).then(function(a){a.forEach(function(v,i){if(v){w.push({update:{name:fsName("bankWorkImg",needW[i]),fields:toFs2({data:v})}});apply.push(function(){ADM.wi[needW[i]]=1})}})})
+ .then(function(){return Promise.all(needP.map(rd))}).then(function(a){var pimg=[];a.forEach(function(v,i){if(v){pimg.push({update:{name:fsName("bankImg",needP[i]),fields:toFs2({data:v})}});apply.push(function(){ADM.pi[needP[i]]=1});pubTouched=true}});pw=pimg.concat(pw)})
+ .then(function(){delW.forEach(function(id){w.push({"delete":fsName("bankWorkImg",id)});apply.push(function(){delete ADM.wi[id]})});delP.forEach(function(id){pw.push({"delete":fsName("bankImg",id)});apply.push(function(){delete ADM.pi[id]});pubTouched=true});
+  var all=w.concat(pw);if(pubTouched)all.push({update:{name:fsName("bankMeta","state"),fields:toFs2({rev:upd})}});
+  if(!all.length){return}
+  return commitAll(all).then(function(){apply.forEach(function(f){f()});admSave()})})
+ .then(function(){ADMB.st="ok";ADMB.t=Date.now()},function(e){ADMB.st="error";ADMB.err=(e&&e.status==="PERMISSION_DENIED")?"Firebase refused the save. Publish the Firestore rules (see the setup notes) and check you are signed in as admin.":/Failed to fetch|NetworkError|Load failed|TypeError/i.test(String(e&&(e.message||e)))?"No internet. Your changes will upload when it returns.":fbErr(e);if(/No internet/.test(ADMB.err))ADMB.st="offline"})
+ .then(function(){ADMB.busy=0;if(ADMB.again){ADMB.again=0;admSched()}if(V==="imp")render()})}
+function bankPublish(sid){if(!isAdm())return;if(!ADM)admLoad();var n=0;ids(sid).forEach(function(i){ADM.pf[i]=1});n=cntP(sid);
+ if(!confirm("Publish "+esc2(secById(sid).name)+" and everything inside it to ALL students?\n"+n+" MCQs with answers will become visible. MCQs without an answer stay hidden."))return;admSave();admSync({publish:1})}
+function esc2(s){return String(s)}
+function bankUnpublish(sid){if(!isAdm())return;if(!ADM)admLoad();if(!confirm("Remove "+secById(sid).name+" and its sub-sections from students? Your own copy stays safe."))return;ids(sid).forEach(function(i){ADM.pf[i]=0});admSave();admSync({publish:1})}
+function bankPublishChanges(){if(!isAdm())return;admSync({publish:1})}
+function bankPublishAll(){if(!isAdm())return;if(!ADM)admLoad();var r=kids(null).filter(nb).filter(function(x){return cntP(x.id)>0});if(!r.length){alert("No folders with answered MCQs yet.");return}
+ if(!confirm("Publish "+r.length+" main folder"+(r.length>1?"s":"")+" with all their sub-sections to ALL students?"))return;r.forEach(function(x){ids(x.id).forEach(function(i){ADM.pf[i]=1})});admSave();admSync({publish:1})}
+function bankAuto(on){if(!ADM)admLoad();ADM.auto=on?1:0;admSave();if(on)admSync({});render()}
+function bankPanel(){
+ if(!isAdm()||!AUTHON)return"";if(!ADM)admLoad();
+ var pd=admPending(),pubN=Object.keys(ADM.pb).filter(function(k){return ADM.pb[k]&&D.sec.some(function(x){return x.id===k})}).length,
+ st=ADMB.st==="syncing"?"Saving to Firebase...":ADMB.st==="offline"?"Offline. Everything is safe on this device and uploads when internet returns.":ADMB.st==="error"?'<span style="color:#e11d48">'+esc(ADMB.err)+'</span>':ADMB.t?"All changes saved to Firebase · "+new Date(ADMB.t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Not synced yet. Tap Sync now to save your library to Firebase.";
+ return'<div class="box" style="--c:#06b6d4"><div class="row"><b class="sp">🌐 Student MCQ Bank</b><button class="btn s" onclick="admSync({})">Sync now</button></div><div class="mu" style="margin:6px 0">'+st+'</div><div class="mu">'+pubN+' folder'+(pubN===1?"":"s")+' published to students'+(pd.n||pd.del?' · <b style="color:#f59e0b">'+(pd.n+pd.del)+' with changes not published yet</b>':"")+'</div><label class="mu" style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto;margin:0" '+(ADM.auto?"checked":"")+' onchange="bankAuto(this.checked)"> Publish my changes automatically inside published folders</label><div class="row"><button class="btn g s" onclick="bankPublishAll()">Publish all</button>'+((pd.n||pd.del)&&!ADM.auto?'<button class="btn s" onclick="bankPublishChanges()">Publish changes</button>':"")+'<button class="btn g s" onclick="admRestore()">Restore from cloud</button></div></div><div style="height:12px"></div>'}
+function bankFolderBar(id){
+ if(!isAdm()||!AUTHON)return"";if(!ADM)admLoad();var des=admDesired(),s=admFolderState(id,des),pr=cntP(id);
+ if(s==="draft")return'<div class="box" style="--c:#6e6a80"><b>📝 Draft</b><div class="mu" style="margin:4px 0 8px">Students cannot see this folder yet.'+(pr?"":" Add MCQs with answers first.")+'</div><button class="btn s" '+(pr?"":"disabled")+' onclick="bankPublish(\''+id+'\')">Publish to students ('+pr+' MCQs)</button></div><div style="height:12px"></div>';
+ return'<div class="box" style="--c:'+(s==="pend"?"#f59e0b":"#0d9f6e")+'"><b>'+(s==="pend"?"⚠ Published, with changes not sent yet":"✅ Published to students")+'</b><div class="mu" style="margin:4px 0 8px">'+(s==="pend"?"Tap Publish changes so students receive your latest edits.":"Students see this folder and its "+pr+" MCQs in Practice. New edits here reach them automatically.")+'</div><div class="row">'+(s==="pend"?'<button class="btn s" onclick="bankPublishChanges()">Publish changes</button>':"")+'<button class="btn g s" onclick="bankUnpublish(\''+id+'\')">Unpublish</button></div></div><div style="height:12px"></div>'}
+function admRestore(){
+ if(!isAdm())return;if(!bankOnlyOnline()){alert("Please connect to the internet first.");return}
+ if(!confirm("Bring back folders and MCQs that are saved in Firebase but missing on this device? Nothing on this device is overwritten or duplicated."))return;
+ ADMB.st="syncing";render();
+ fsList("bankWork",null).then(function(docs){var g={};docs.forEach(function(d){var o=fromFs(d);if(o.sid){(g[o.sid]=g[o.sid]||[]).push(o)}});var ns=0,nm=0,imgs=[];
+  var have={};D.mcq.filter(nb).forEach(function(m){have[m.id]=1;have[m.sec+"|"+mkey(m.q,m.o)]=1});
+  Object.keys(g).forEach(function(sid){var os=g[sid].sort(function(a,b){return a.ch-b.ch}),h=os[0];
+   if(!secById(sid)){D.sec.push({id:sid,name:h.name,em:h.em,c:h.c,p:h.p||null});ns++}
+   os.forEach(function(o){var l=[];try{l=JSON.parse(o.mcqJson||"[]")}catch(e){}l.forEach(function(q){if(have[q.id]||have[sid+"|"+mkey(q.q,q.o)])return;have[q.id]=1;var m={id:q.id,sec:sid,q:q.q,o:q.o,a:q.a,e:q.e||""};if(q.d)m.d=q.d;if(q.n)m.n=q.n;if(q.dt)m.dt=q.dt;if(q.di)m.di=q.di;if(q.im){m.im=1;imgs.push(q.id)}D.mcq.push(m);nm++})})});
+  save();var i=0;function nx(){if(i>=imgs.length)return Promise.resolve();var id=imgs[i++];return sget("i",id).then(function(v){if(v)return;return fsGetDoc("bankWorkImg",id).then(function(d){var o=fromFs(d);if(o.data)return sput("i",id,o.data)},function(){})},function(){}).then(nx)}
+  return nx().then(function(){ADMB.st="ok";alert("Restored "+ns+" folder"+(ns===1?"":"s")+" and "+nm+" MCQ"+(nm===1?"":"s")+" from Firebase.");render()})}).catch(function(e){ADMB.st="error";ADMB.err=fbErr(e);render()})}
+
 /* community */
 function toFs(o){var f={};for(var k in o){var v=o[k];f[k]=typeof v==="number"?{integerValue:String(Math.round(v))}:{stringValue:String(v)}}return{fields:f}}
 function fromFs(d){var o={},f=d.fields||{};for(var k in f){var v=f[k];o[k]=v.stringValue!==undefined?v.stringValue:v.integerValue!==undefined?+v.integerValue:v.booleanValue}o.id=d.name?d.name.split("/").pop():"";return o}
@@ -679,4 +884,93 @@ function commBanner(){return AUTHON&&USER?box("#06b6d4","\uD83C\uDF0D","Communit
 function net(){$("net").textContent=(navigator.onLine?"Online":"Offline")+(AUTHON?(USER?" · "+USER.name.split(" ")[0]:""):(ADMIN?" · Owner":" · View"))}
 addEventListener("online",net);addEventListener("offline",net);net();load();authStart();
 if(window.claude&&claude.use){claude.use("user").then(function(u){setAdmin(!!(u&&u.isOwner&&u.isOwner()))},function(){})}
-</script><script>try{if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js")}catch(e){}</script></body></html>
+</script><script>/* ---------- automatic update notification (service worker driven) ---------- */
+(function(){
+var MD={reload:function(){location.reload()},snoozeMs:4*3600*1000,checkMs:30*60*1000};
+window.MDUP=MD;
+if(!("serviceWorker" in navigator)||location.protocol.indexOf("http")!==0){MD.card=function(){return""};MD.manual=function(){};return}
+var SW=navigator.serviceWorker,SNZ="mdcat_upd_snooze",dlFail=false,reg=null,waiting=null,updating=false,reloading=false,ver="",lastChk=0,stTxt="",tmr=0;
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+function el(i){return document.getElementById(i)}
+function setSt(t){stTxt=t;var e=el("upd-st");if(e)e.textContent=t}
+function busy(){try{
+ if(typeof V!=="undefined"&&V==="mockrun"&&typeof M!=="undefined"&&M&&!M.fin)return"test";
+ if(typeof V!=="undefined"&&V==="quiz"&&typeof T!=="undefined"&&T&&T.list&&T.i<T.list.length)return"test";
+ if(typeof IM!=="undefined"&&IM&&IM.busy)return"import";
+ var b=el("bkb");if(b&&b.textContent)return"upload";
+ if(typeof SOLV!=="undefined"&&SOLV&&SOLV.list&&SOLV.i<SOLV.list.length&&!SOLV.stop&&typeof V!=="undefined"&&V==="solve")return"keyfind";
+}catch(e){}return""}
+var WHY={test:"You are in the middle of a test. Finish or submit it first, then tap Update Now.",import:"An import is running. Tap Update Now when it finishes.",upload:"A book is being read. Tap Update Now when it finishes.",keyfind:"The answer key is being made. Tap Update Now when it finishes."};
+function snoozed(){return Date.now()<(parseInt(ls(SNZ),10)||0)}
+function visible(){return!!el("upd")}
+function hide(){var b=el("upd");if(b&&b.parentNode)b.parentNode.removeChild(b)}
+function setMsg(t,err){var m=el("upd-m");if(m){m.textContent=t;m.style.color=err?"#e11d48":""}}
+function setBusyUi(on){var n=el("upd-now"),l=el("upd-later");if(n){n.disabled=on;n.textContent=on?"Updating...":"Update Now"}if(l)l.disabled=on}
+function show(){
+ if(visible())return;
+ var d=document.createElement("div");d.id="upd";d.className="upd";d.setAttribute("role","dialog");d.setAttribute("aria-live","polite");d.setAttribute("aria-label","App update");
+ d.innerHTML='<div class="upd-card"><div class="upd-ic" aria-hidden="true">🚀</div><div class="upd-tx"><b>New Update Available!</b><span id="upd-m">A new version of MDCAT JOURNEY is ready. Your account, MCQ progress, test results, books and notes stay safe.</span></div><div class="upd-bt"><button type="button" id="upd-later" class="upd-b g">Later</button><button type="button" id="upd-now" class="upd-b">Update Now</button></div></div>';
+ document.body.appendChild(d);
+ el("upd-later").onclick=later;el("upd-now").onclick=apply}
+function maybeShow(forceIt){
+ if(!waiting)return;
+ if(!forceIt&&(snoozed()||busy()))return;
+ if(forceIt)ls(SNZ,null);
+ show()}
+function later(){ls(SNZ,String(Date.now()+MD.snoozeMs));hide();setSt("Update ready. We will remind you later.")}
+function fail(){
+ updating=false;setBusyUi(false);
+ setMsg("The update could not be completed. You can keep using your current version. We will try again soon.",true);
+ setSt("Update failed. Your current version keeps working.");
+ setTimeout(check,120000)}
+function apply(){
+ if(updating)return;
+ var b=busy();if(b){setMsg(WHY[b],false);return}
+ if(!waiting){hide();return}
+ updating=true;setBusyUi(true);setMsg("Installing the new version. The app will restart in a moment.",false);
+ try{if(typeof save==="function")save()}catch(e){}
+ try{waiting.postMessage({type:"SKIP_WAITING"})}catch(e){fail();return}
+ setTimeout(function(){if(updating)doReload()},7000)}
+function doReload(){if(reloading)return;reloading=true;ls(SNZ,null);MD.reload()}
+function track(nw){
+ if(!nw)return;
+ nw.addEventListener("statechange",function(){
+  if(nw.state==="installed"){if(SW.controller){waiting=nw;setSt("Update ready.");maybeShow(false)}}
+  else if(nw.state==="redundant"){if(waiting===nw)waiting=null;if(updating)fail();else{dlFail=true;setSt("Could not download the update. Your current version keeps working. We will try again soon.")}}})}
+function onReg(r){
+ reg=r;
+ if(r.waiting&&SW.controller){waiting=r.waiting;maybeShow(false)}
+ if(r.installing)track(r.installing);
+ r.addEventListener("updatefound",function(){dlFail=false;setSt("Downloading update...");track(r.installing)});
+ askVer();setTimeout(check,2500)}
+function check(manual){
+ if(!reg||updating)return Promise.resolve();
+ if(!navigator.onLine){if(manual)setSt("You are offline. We will check again when internet returns.");return Promise.resolve()}
+ if(!manual&&Date.now()-lastChk<60000)return Promise.resolve();
+ lastChk=Date.now();
+ return reg.update().then(function(){return 1},function(){if(manual)setSt("Could not check right now. Your current version keeps working.");return 0})}
+function askVer(){try{if(SW.controller)SW.controller.postMessage({type:"GET_VERSION"})}catch(e){}}
+MD.manual=function(){
+ setSt("Checking...");
+ if(!navigator.onLine){setSt("You are offline. We will check again when internet returns.");return}
+ if(!reg){setSt("Updates are not available in this browser.");return}
+ check(true).then(function(ok){
+  if(!ok)return;
+  setTimeout(function(){
+   if(waiting){setSt("Update ready.");maybeShow(true)}
+   else if(reg.installing&&reg.installing.state!=="redundant"){setSt("Downloading update...")}
+   else if(!dlFail)setSt("You are on the latest version ✓")},1500)})};
+MD.card=function(){
+ var st=stTxt||(waiting?"Update ready.":"Tap to check for a new version.");
+ return'<div class="box" style="--c:#e6168a"><b>🔄 App updates</b><div class="mu" style="margin:6px 0">Version <span id="upd-ver">'+(ver||"-")+'</span> · <span id="upd-st">'+st+'</span></div><button class="btn g s" onclick="MDUP.manual()">Check for updates</button><p class="mu" style="margin:8px 0 0">Updates never delete your account, MCQ progress, test results, books or notes.</p></div><div style="height:12px"></div>'};
+MD.state=function(){return{waiting:!!waiting,updating:updating,snoozed:snoozed(),version:ver}};
+SW.addEventListener("message",function(e){var d=e.data;if(d&&d.type==="VERSION"){ver=d.version;var v=el("upd-ver");if(v)v.textContent=ver}});
+SW.addEventListener("controllerchange",function(){askVer();if(updating)doReload()});
+window.addEventListener("online",function(){setTimeout(check,1500)});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){check();maybeShow(false)}});
+setInterval(check,MD.checkMs);
+setInterval(function(){maybeShow(false)},20000);
+function start(){SW.register("sw.js",{updateViaCache:"none"}).then(onReg,function(){})}
+if(document.readyState==="complete")start();else window.addEventListener("load",start);
+})();
+</script></body></html>
