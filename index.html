@@ -325,66 +325,184 @@ push();
 qs.forEach(function(q){if(q.a<0&&keys[q.n]!==undefined)q.a=keys[q.n];q.o=q.o.slice(0,5);q.q=q.q.trim();q.e=(q.e||"").trim()});
 var have={},mn=1e9,mx=0,gaps=[];qs.forEach(function(q){have[q.n]=1;if(q.n<mn)mn=q.n;if(q.n>mx)mx=q.n});for(var i=mn;i<=mx;i++)if(!have[i])gaps.push(i);qs.gaps=gaps;return qs}
 function imBusy(t){IM.busy=t;var e=$("imb");if(e)e.textContent=t;else render()}
-function pdfText(buf){var info={H:{},W:{},top:{},rects:{}};
+function pdfText(buf){var info={H:{},W:{},top:{},rects:{},figs:{},its:{}};
 return pdfLib().then(function(L){return L.getDocument({data:new Uint8Array(buf)}).promise}).then(function(doc){info.doc=doc;var pages=[],n=doc.numPages;
-function fin(){var cnt={};function nk(l){return l.replace(/\d+/g,"#").toLowerCase()}
+function fin(){dedupeFigs(info,n);var cnt={};function nk(l){return l.replace(/\d+/g,"#").toLowerCase()}
 pages.forEach(function(a){a.forEach(function(o){o.t=o.t.replace(/\s+/g," ").trim()});var u={};a.forEach(function(o){if(o.t)u[nk(o.t)]=1});for(var k in u)cnt[k]=(cnt[k]||0)+1});
 var th=n<4?n:Math.ceil(n*0.6),flat=[];
 pages.forEach(function(a,pi){var kept=a.filter(function(o){var l=o.t;if(!l)return false;if(/^(page\s*)?\d{1,4}(\s*(of|\/)\s*\d{1,4})?$/i.test(l))return false;if(n>=2&&l.length<90&&cnt[nk(l)]>=th&&!/^\(?[A-Ea-e][\.\)]\s/.test(l)&&!/^(?:Q(?:uestion)?\.?\s*)?\d{1,4}\s*[\.\:\)]\s/i.test(l)&&!/^(ans|answer|correct)/i.test(l))return false;return true});
 if(kept.length)info.top[pi+1]=kept[0].top;kept.forEach(function(o){flat.push(o)})});
 return{lines:flat,info:info}}
-function pg(i){if(i>n)return fin();imBusy("Reading page "+i+" of "+n+"...");return doc.getPage(i).then(function(p){var vp=p.getViewport({scale:1});info.W[i]=vp.width;info.H[i]=vp.height;return p.getTextContent().then(function(tc){var lines=[],cur=null,y=null,rc=[];
+function pg(i){if(i>n)return fin();imBusy("Reading page "+i+" of "+n+(IM.nodg?"...":" (checking for diagrams)..."));return doc.getPage(i).then(function(p){var vp=p.getViewport({scale:1});info.W[i]=vp.width;info.H[i]=vp.height;return p.getTextContent().then(function(tc){var lines=[],cur=null,y=null,rc=[],its=[];
 tc.items.forEach(function(it){if(!it.str)return;var ty=it.transform[5],h=it.height||Math.abs(it.transform[3])||10;
 if(y!==null&&Math.abs(ty-y)>3)cur=null;else if(cur)cur.t+=" ";
-if(!cur){cur={t:"",p:i,y:ty,top:ty+h};lines.push(cur)}
+if(!cur){cur={t:"",p:i,y:ty,top:ty+h,pr:[]};lines.push(cur)}
 cur.t+=it.str;if(ty+h>cur.top)cur.top=ty+h;y=ty;
-if(it.str.trim())rc.push([it.transform[4],ty-h*0.3,it.width||0,h*1.4])});
-info.rects[i]=rc;pages.push(lines);try{p.cleanup()}catch(e){}return pg(i+1)})})}
+var rec={s:it.str,ln:cur,r:null,rot:false};cur.pr.push(rec);
+if(it.str.trim()){var w=it.width||0,tx=it.transform[4],a=it.transform[0],b=it.transform[1];
+if(Math.abs(b)>Math.abs(a)){rec.rot=true;rec.r=b>0?[tx-h*1.1,ty,tx+h*0.3,ty+w]:[tx-h*0.3,ty-w,tx+h*1.1,ty]}else rec.r=[tx,ty-h*0.3,tx+w,ty+h*1.1];
+rc.push([rec.r[0],rec.r[1],rec.r[2]-rec.r[0],rec.r[3]-rec.r[1]]);its.push(rec)}});
+info.rects[i]=rc;info.its[i]=its;
+return(IM.nodg?Promise.resolve():findFigs(p,i,its,info)).catch(function(){}).then(function(){pages.push(lines);try{p.cleanup()}catch(e){}return pg(i+1)})})})}
 return pg(1)})}
 var SCL=1.8;
-function segsFor(q,info){var out=[];if(!q.p)return out;var p0=q.p,p1=q.nx?q.nx.p:(q.ep||q.p);if(p1<p0)p1=p0;
+/* ---------- diagram detection: only real visuals (graphs, circuits, structures, labelled figures) become pictures ---------- */
+var FMK=/^\(?[A-Ea-e][\.\)]/,FQN=/^(?:Q(?:uestion)?\.?\s*)?\d{1,4}\s*[\.\:\)]\s/i,FAN=/^(?:ans(?:wer)?|correct|explanation|exp|solution|reason)\b/i,FMO=/^\(?[A-Ea-e]\)?[\.\)]?$/,FKW=/\b(figure|fig\.?|diagram|graph|circuit|shown|structure|curve|plot|chart|picture|image|above|below)\b/i;
+function findFigs(pg,pn,its,info){
+var vp=pg.getViewport({scale:SCL}),W=Math.ceil(vp.width),H=Math.ceil(vp.height),cv=document.createElement("canvas");cv.width=W;cv.height=H;
+var cx=cv.getContext("2d",{willReadFrequently:true});cx.fillStyle="#fff";cx.fillRect(0,0,W,H);
+return pg.render({canvasContext:cx,viewport:vp}).promise.then(function(){
+var res=null;try{res=detectFigs(cv,vp,its,W,H)}finally{cv.width=cv.height=0}
+info.figs[pn]=res.figs;var seen=[];
+res.drop.forEach(function(r){r.drop=true;if(seen.indexOf(r.ln)<0)seen.push(r.ln)});
+seen.forEach(function(l){l.t=l.pr.filter(function(x){return!x.drop}).map(function(x){return x.s}).join(" ")})})}
+function detectFigs(cv,vp,its,W,H){
+var N=W*H,id=cv.getContext("2d").getImageData(0,0,W,H).data,ink=new Uint8Array(N),i,k,x,y,p,c;
+for(i=0,k=0;i<N;i++,k+=4)if(id[k]*299+id[k+1]*587+id[k+2]*114<205000)ink[i]=1;
+var raw=ink.slice();/* untouched copy: lets us spot screenshots of printed MCQ text */
+/* 1. every printed text item (rotated ones too), so text is never mistaken for a picture */
+var T=[],edges={};
+its.forEach(function(r){var a=vp.convertToViewportRectangle(r.r),ln=r.ln,lt=ln.t.replace(/\s+/g," ").trim(),s=r.s.trim();
+if(ln.mo===undefined)ln.mo=FMK.test(lt)&&ln.pr.every(function(q){var z=q.s.trim();return!z||FMO.test(z)});
+var mk=FMK.test(lt)||FQN.test(lt)||FAN.test(lt),o={r:r,s:s,x0:Math.min(a[0],a[2]),y0:Math.min(a[1],a[3]),x1:Math.max(a[0],a[2]),y1:Math.max(a[1],a[3]),mo:ln.mo,rot:r.rot,body:(mk&&!ln.mo)||s.length>=40,cl:null};
+o.edge=((o.y0+o.y1)/2<H*0.04)||((o.y0+o.y1)/2>H*0.96);T.push(o);
+if(o.body&&!o.rot)edges[Math.round(o.x0/4)]=(edges[Math.round(o.x0/4)]||0)+1});
+T.forEach(function(o){/* a short line that starts exactly where the body text starts is part of the statement, not a diagram label */
+var e=Math.round(o.x0/4),n=(edges[e]||0)+(edges[e-1]||0)+(edges[e+1]||0);o.stem=!o.body&&!o.rot&&n>=2&&/[A-Za-z]{3,}/.test(o.s);
+var x0=Math.max(0,Math.floor(o.x0)-3),x1=Math.min(W,Math.ceil(o.x1)+3),y0=Math.max(0,Math.floor(o.y0)-2),y1=Math.min(H,Math.ceil(o.y1)+2);for(var yy=y0;yy<y1;yy++)ink.fill(0,yy*W+x0,yy*W+x1)});
+var mX=Math.floor(W*0.025),mY=Math.floor(H*0.03);
+for(y=0;y<H;y++){if(y<mY||y>=H-mY)ink.fill(0,y*W,(y+1)*W);else{ink.fill(0,y*W,y*W+mX);ink.fill(0,y*W+W-mX,(y+1)*W)}}
+var tot=0;for(i=0;i<N;i++)tot+=ink[i];if(tot<250)return{figs:[],drop:[]};
+/* 2. straight-run lengths, to tell rules/borders/table lines from drawings */
+var hr=new Uint16Array(N),vr=new Uint16Array(N),s0,len,j;
+for(y=0;y<H;y++){x=0;while(x<W){if(!ink[y*W+x]){x++;continue}s0=x;while(x<W&&ink[y*W+x])x++;len=Math.min(x-s0,65535);for(j=s0;j<x;j++)hr[y*W+j]=len}}
+for(x=0;x<W;x++){y=0;while(y<H){if(!ink[y*W+x]){y++;continue}s0=y;while(y<H&&ink[y*W+x])y++;len=Math.min(y-s0,65535);for(j=s0;j<y;j++)vr[j*W+x]=len}}
+/* 3. group nearby ink into pieces */
+var gw=Math.ceil(W/4),gh=Math.ceil(H/4),cnt=new Uint8Array(gw*gh),dl=new Uint8Array(gw*gh),lab=new Int32Array(gw*gh),nc=0,gx,gy,dx,dy,xx,yy;
+for(y=0;y<H;y++)for(x=0;x<W;x++)if(ink[y*W+x]){c=(y>>2)*gw+(x>>2);if(cnt[c]<255)cnt[c]++}
+for(gy=0;gy<gh;gy++)for(gx=0;gx<gw;gx++)if(cnt[gy*gw+gx]>=3)for(dy=-2;dy<=2;dy++){yy=gy+dy;if(yy<0||yy>=gh)continue;for(dx=-2;dx<=2;dx++){xx=gx+dx;if(xx>=0&&xx<gw)dl[yy*gw+xx]=1}}
+for(i=0;i<gw*gh;i++)if(dl[i]&&!lab[i]){nc++;var st=[i];lab[i]=nc;while(st.length){var cc=st.pop(),cx0=cc%gw,cy0=(cc/gw)|0,nb=[cx0>0?cc-1:-1,cx0<gw-1?cc+1:-1,cy0>0?cc-gw:-1,cy0<gh-1?cc+gw:-1];for(var q=0;q<4;q++){var m=nb[q];if(m>=0&&dl[m]&&!lab[m]){lab[m]=nc;st.push(m)}}}}
+var n=new Int32Array(nc+1),cu=new Int32Array(nc+1),X0=new Int32Array(nc+1).fill(W),Y0=new Int32Array(nc+1).fill(H),X1=new Int32Array(nc+1).fill(-1),Y1=new Int32Array(nc+1).fill(-1);
+for(y=0;y<H;y++)for(x=0;x<W;x++){p=y*W+x;if(!ink[p])continue;c=lab[(y>>2)*gw+(x>>2)];if(!c)continue;n[c]++;if(x<X0[c])X0[c]=x;if(x>X1[c])X1[c]=x;if(y<Y0[c])Y0[c]=y;if(y>Y1[c])Y1[c]=y;if(hr[p]<14&&vr[p]<14)cu[c]++}
+function ray(c,px,py,ddx,ddy){var a=Math.round(px),b=Math.round(py);while(a>=X0[c]&&a<=X1[c]&&b>=Y0[c]&&b<=Y1[c]){if(ink[b*W+a]&&lab[(b>>2)*gw+(a>>2)]===c)return true;a+=ddx;b+=ddy}return false}
+var cand=[];
+for(c=1;c<=nc;c++){if(n[c]<40)continue;var w=X1[c]-X0[c]+1,h=Y1[c]-Y0[c]+1;if(Math.max(w,h)<12||Math.min(w,h)<=8||w*h>0.55*W*H)continue;
+var thr=Math.max(30,0.6*w),rows=[],last=-9,rp=0;
+for(y=Y0[c];y<=Y1[c];y++){var hit=false;for(x=X0[c];x<=X1[c];x++){p=y*W+x;if(ink[p]&&hr[p]>=thr&&vr[p]<=6&&lab[(y>>2)*gw+(x>>2)]===c){hit=true;rp++}}if(hit){if(y-last>3)rows.push(y);last=y}}
+if(rp>=0.9*n[c])continue;/* only long straight rules: underline, separator, text-table lines */
+if(cu[c]<260&&rows.length>=2){var ins=0,enc=0;T.forEach(function(o){var mx=(o.x0+o.x1)/2,my=(o.y0+o.y1)/2;if(mx<X0[c]||mx>X1[c]||my<Y0[c]||my>Y1[c])return;ins++;if(ray(c,mx,my,-1,0)&&ray(c,mx,my,1,0)&&ray(c,mx,my,0,-1)&&ray(c,mx,my,0,1))enc++});
+if(ins>0&&enc/ins>=0.6)continue}/* ruled box or table with its text inside the cells: not a picture */
+cand.push({ix0:X0[c],iy0:Y0[c],ix1:X1[c],iy1:Y1[c],n:n[c],mx:n[c]})}
+if(cand.length>300)cand=cand.sort(function(a,b){return b.n-a.n}).slice(0,300);
+function uni(a,b){a.ix0=Math.min(a.ix0,b.ix0);a.iy0=Math.min(a.iy0,b.iy0);a.ix1=Math.max(a.ix1,b.ix1);a.iy1=Math.max(a.iy1,b.iy1);a.n+=b.n;a.mx=Math.max(a.mx,b.mx)}
+function bodyBetween(x0,x1,y0,y1){return T.some(function(o){var mx=(o.x0+o.x1)/2,my=(o.y0+o.y1)/2;return o.body&&mx>=x0&&mx<=x1&&my>=y0&&my<=y1})}
+function joinInk(a,b){var g=22;if(a.ix0-g<=b.ix1&&b.ix0-g<=a.ix1&&a.iy0-g<=b.iy1&&b.iy0-g<=a.iy1)return true;
+/* pieces side by side on one row (reaction steps, structures) with only short text between them */
+if(Math.min(a.n,b.n)<150)return false;var ov=Math.min(a.iy1,b.iy1)-Math.max(a.iy0,b.iy0);if(ov<0.5*Math.min(a.iy1-a.iy0,b.iy1-b.iy0))return false;
+var l=a.ix1<b.ix0?a:b,r=l===a?b:a,gap=r.ix0-l.ix1;return gap>=0&&gap<=70&&!bodyBetween(l.ix1,r.ix0,Math.max(a.iy0,b.iy0),Math.min(a.iy1,b.iy1))}
+function mergeAll(cl,fn){var ch=true;while(ch){ch=false;for(var a=0;a<cl.length&&!ch;a++)for(var b=a+1;b<cl.length;b++)if(fn(cl[a],cl[b])){uni(cl[a],cl[b]);cl.splice(b,1);ch=true;break}}}
+mergeAll(cand,joinInk);
+/* 4. attach the labels that belong to each picture: numbers, arrows' text, axis titles, captions - never question or option text */
+function labels(cl){cl.forEach(function(c){c.bx0=c.ix0;c.by0=c.iy0;c.bx1=c.ix1;c.by1=c.iy1;c.labs=[]});T.forEach(function(o){o.cl=null});
+for(var round=0;round<8;round++){var chg=false;
+T.forEach(function(o){if(o.cl||o.body||o.edge||o.stem)return;var len=o.s.length,h=o.y1-o.y0,g=Math.max(24,h*1.5),mx=(o.x0+o.x1)/2,my=(o.y0+o.y1)/2,best=null,bd=1e9;
+cl.forEach(function(c){var dx=Math.max(c.bx0-o.x1,o.x0-c.bx1,0),dy=Math.max(c.by0-o.y1,o.y0-c.by1,0),d;
+if(dx===0&&dy===0){if(len>=40)return;d=0}
+else{if(len>28)return;if(mx>=c.bx0&&mx<=c.bx1&&dy<=g)d=dy;else if(my>=c.by0&&my<=c.by1&&dx<=g)d=dx;else return;if(o.mo)d*=0.7}
+if(d<bd){bd=d;best=c}});
+if(best){o.cl=best;best.labs.push(o);best.bx0=Math.min(best.bx0,o.x0);best.by0=Math.min(best.by0,o.y0);best.bx1=Math.max(best.bx1,o.x1);best.by1=Math.max(best.by1,o.y1);chg=true}});
+if(!chg)break}}
+for(var it=0;it<4;it++){labels(cand);var mg=false;
+for(var a=0;a<cand.length&&!mg;a++)for(var b=a+1;b<cand.length;b++){var A=cand[a],B=cand[b];var ov=Math.min(A.by1,B.by1)-Math.max(A.by0,B.by0),sr=ov>=0.5*Math.min(A.by1-A.by0,B.by1-B.by0)&&Math.max(A.n,B.n)>=150&&Math.min(A.n,B.n)>=40&&Math.max(A.bx0-B.bx1,B.bx0-A.bx1)<=45&&!bodyBetween(Math.min(A.bx1,B.bx1),Math.max(A.bx0,B.bx0),Math.max(A.by0,B.by0),Math.min(A.by1,B.by1));
+if((A.bx0-8<=B.bx1&&B.bx0-8<=A.bx1&&A.by0-8<=B.by1&&B.by0-8<=A.by1)||sr){uni(A,B);cand.splice(b,1);mg=true;break}}
+if(!mg)break}
+/* a screenshot of MCQ text is never a diagram: 3+ left-aligned lines made of letter-sized marks, and most of the ink is letters */
+function textLike(x0,y0,x1,y1){var w=x1-x0,h=y1-y0;if(w<20||h<20)return false;
+var lb=new Int32Array(w*h),gl=[],tot=0,gInk=0,xx,yy,st,nbs,ci=0;
+for(yy=0;yy<h;yy++)for(xx=0;xx<w;xx++){if(!raw[(y0+yy)*W+x0+xx]||lb[yy*w+xx])continue;
+ci++;st=[yy*w+xx];lb[st[0]]=ci;var a0=xx,a1=xx,b0=yy,b1=yy,cn=0;
+while(st.length){var cc=st.pop(),cx=cc%w,cy=(cc/w)|0;cn++;if(cx<a0)a0=cx;if(cx>a1)a1=cx;if(cy<b0)b0=cy;if(cy>b1)b1=cy;
+for(var ddy=-1;ddy<=1;ddy++)for(var ddx=-1;ddx<=1;ddx++){var nx=cx+ddx,ny=cy+ddy;if(nx<0||ny<0||nx>=w||ny>=h)continue;var ni=ny*w+nx;if(lb[ni]||!raw[(y0+ny)*W+x0+nx])continue;lb[ni]=ci;st.push(ni)}}
+tot+=cn;var cw=a1-a0+1,ch=b1-b0+1;if(cw<=40&&ch<=40&&ch>=5){gl.push({x0:a0,x1:a1,cy:(b0+b1)/2});gInk+=cn}}
+if(tot<1||gInk<0.5*tot||gl.length<30)return false;
+gl.sort(function(a,b){return a.cy-b.cy});var rows=[];
+gl.forEach(function(g){var r=rows[rows.length-1];if(r&&Math.abs(g.cy-r.cy)<=6){r.g.push(g);r.cy=(r.cy*(r.g.length-1)+g.cy)/r.g.length}else rows.push({cy:g.cy,g:[g]})});
+var lefts=[];rows.forEach(function(r){r.g.sort(function(a,b){return a.x0-b.x0});var cnt=0,left=0,last=-1e9;
+r.g.forEach(function(g,ix){if(g.x0-last>16){if(cnt>=10)lefts.push(left);cnt=0;left=g.x0}cnt++;last=g.x1});if(cnt>=10)lefts.push(left)});
+lefts.sort(function(a,b){return a-b});
+for(var i2=0;i2<lefts.length;i2++){var k2=i2;while(k2<lefts.length&&lefts[k2]-lefts[i2]<=30)k2++;if(k2-i2>=3)return true}
+return false}
+/* 5. keep genuine pictures only, then crop each one with its labels */
+var figs=[],drop=[];
+cand.forEach(function(c){if(c.n<300||c.mx<150||c.ix1-c.ix0<45||c.iy1-c.iy0<30)return;
+var nb=0;T.forEach(function(o){var mx=(o.x0+o.x1)/2,my=(o.y0+o.y1)/2;if(o.body&&!o.mo&&mx>=c.bx0&&mx<=c.bx1&&my>=c.by0&&my<=c.by1)nb++});if(nb>=3)return;/* a region full of question/option lines is not a picture */
+var mkl=[];T.forEach(function(o){var mx=(o.x0+o.x1)/2,my=(o.y0+o.y1)/2;if(o.rot||o.mo||mx<c.bx0||mx>c.bx1||my<c.by0||my>c.by1)return;var lt=o.r.ln.t.replace(/\s+/g," ").trim();if((FMK.test(lt)||FQN.test(lt))&&mkl.indexOf(o.r.ln)<0)mkl.push(o.r.ln)});
+if(mkl.length>=2||(mkl.length>=1&&nb>=2))return;/* question numbers / A. B. C. D. option lines inside = a picture of the MCQ itself, never a diagram */
+var P=10,x0=Math.max(0,Math.floor(c.bx0)-P),y0=Math.max(0,Math.floor(c.by0)-P),x1=Math.min(W,Math.ceil(c.bx1)+P),y1=Math.min(H,Math.ceil(c.by1)+P);
+if(textLike(x0,y0,x1,y1))return;
+var oc=document.createElement("canvas");oc.width=x1-x0;oc.height=y1-y0;var ox=oc.getContext("2d");
+ox.drawImage(cv,x0,y0,oc.width,oc.height,0,0,oc.width,oc.height);ox.fillStyle="#fff";
+T.forEach(function(o){if(o.cl===c||o.x1<x0||o.x0>x1||o.y1<y0||o.y0>y1)return;ox.fillRect(Math.floor(o.x0)-x0-2,Math.floor(o.y0)-y0-1,Math.ceil(o.x1-o.x0)+5,Math.ceil(o.y1-o.y0)+3)});/* wipe any statement/option text that touches the crop */
+var u=oc.toDataURL("image/jpeg",0.85);oc.width=oc.height=0;
+var p1=vp.convertToPdfPoint(x0,y0),p2=vp.convertToPdfPoint(x1,y1);
+figs.push({u:u,ft:Math.max(p1[1],p2[1]),fb:Math.min(p1[1],p2[1]),fx:Math.min(p1[0],p2[0]),fx1:Math.max(p1[0],p2[0])});
+if(!c.labs.some(function(o){return o.mo}))c.labs.forEach(function(o){drop.push(o.r)})});/* the labels now live in the picture, so they leave the statement text (option letters always stay) */
+figs.sort(function(a,b){return(b.ft-a.ft)||(a.fx-b.fx)});
+return{figs:figs,drop:drop}}
+function dedupeFigs(info,n){if(n<3)return;var seen={},th=Math.max(3,Math.ceil(n*0.5));function sg(f){return Math.round(f.fx/20)+"_"+Math.round(f.ft/20)+"_"+Math.round((f.fx1-f.fx)/20)+"_"+Math.round((f.ft-f.fb)/20)}
+for(var p in info.figs)info.figs[p].forEach(function(f){var s=sg(f);(seen[s]=seen[s]||{})[p]=1});
+for(var p2 in info.figs)info.figs[p2]=info.figs[p2].filter(function(f){return Object.keys(seen[sg(f)]).length<th})}/* logos / watermarks repeated on most pages are not MCQ diagrams */
+function stackUrls(us,meta){return Promise.all(us.map(function(u){return new Promise(function(ok){var im=new Image();im.onload=function(){ok(im)};im.onerror=function(){ok(null)};im.src=u})})).then(function(a){var L=[];a.forEach(function(i,k){if(i)L.push({im:i,m:(meta&&meta[k])||{}})});if(!L.length)return null;
+/* pieces that sit on the same row of the page (reaction steps, side-by-side structures) stay side by side; only pieces on different rows are stacked */
+var rows=[];L.forEach(function(e){var r=rows[rows.length-1],h=(e.m.ft!=null)?(e.m.ft-e.m.fb):0;
+if(r&&e.m.ft!=null&&r.p===e.m.p){var ov=Math.min(r.t,e.m.ft)-Math.max(r.b,e.m.fb);if(ov>=0.5*Math.min(r.t-r.b,h)){r.l.push(e);r.t=Math.max(r.t,e.m.ft);r.b=Math.min(r.b,e.m.fb);return}}
+rows.push({l:[e],p:e.m.p,t:e.m.ft,b:e.m.fb})});
+var w=0,h=0;rows.forEach(function(r){r.l.sort(function(x,y){return(x.m.fx||0)-(y.m.fx||0)});r.w=0;r.h=0;r.l.forEach(function(e){r.w+=e.im.width+24;if(e.im.height>r.h)r.h=e.im.height});r.w-=24;if(r.w>w)w=r.w;h+=r.h+6});
+var o=document.createElement("canvas");o.width=w;o.height=h;var x=o.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,w,h);var y=0;
+rows.forEach(function(r){var xx=0;r.l.forEach(function(e){x.drawImage(e.im,xx,y+Math.round((r.h-e.im.height)/2));xx+=e.im.width+24});y+=r.h+6});
+var res=o.toDataURL("image/jpeg",0.85);o.width=o.height=0;return res})}
+function attachFigs(info,items){var by={};
+items.forEach(function(q,qi){q.fg=[];segsFor(q,info,true).forEach(function(g){(by[g.p]=by[g.p]||[]).push({qi:qi,t:g.t,b:g.b})})});
+Object.keys(info.figs||{}).forEach(function(pk){var p=+pk;(info.figs[pk]||[]).forEach(function(f){var cy=(f.ft+f.fb)/2,hit=null;
+(by[p]||[]).forEach(function(g){if(!hit&&cy<=g.t&&cy>g.b)hit=g});
+if(!hit){var Hp=info.H[p]||842,bq=-1,bt=-1;if(f.ft<Hp*0.92)items.forEach(function(q,qi){if(q.p===p&&q.top<=f.fb+4&&f.fb-q.top<=150&&q.top>bt){bt=q.top;bq=qi}});if(bq<0)return;hit={qi:bq}}
+var qi=hit.qi,q=items[qi],nq=items[qi+1],ep=q.ep||q.p;
+if(nq&&(p>ep||(p===ep&&f.ft<q.ey))){/* picture sits after the last line of this MCQ: it may belong to the next one */
+var k1=FKW.test(nq.q||""),k0=FKW.test(q.q||""),toNext=false;
+if(k1!==k0)toNext=k1;else if(nq.p===p)toNext=(p>ep)||((f.fb-nq.top)<(q.ey-f.ft));
+if(toNext)qi++}
+items[qi].fg.push({p:p,f:f})})});
+var jobs=items.map(function(q){var a=q.fg;q.fg=null;if(!a.length)return null;a.sort(function(x,y){return(x.p-y.p)||(y.f.ft-x.f.ft)||(x.f.fx-y.f.fx)});
+if(a.length===1){q.img=a[0].f.u;return null}
+return stackUrls(a.map(function(z){return z.f.u}),a.map(function(z){return{p:z.p,ft:z.f.ft,fb:z.f.fb,fx:z.f.fx}})).then(function(u){if(u)q.img=u})});
+return Promise.all(jobs)}
+function segsFor(q,info,tail){var out=[];if(!q.p)return out;var p0=q.p,p1=q.nx?q.nx.p:(q.ep||q.p);if(p1<p0)p1=p0;
 for(var p=p0;p<=p1;p++){var H=info.H[p];if(!H)continue;var t=(p===p0)?q.top+3:(info.top[p]||H)+3,b;
-if(p===p1){b=(q.nx&&q.nx.p===p)?q.nx.top+3:Math.max(0,q.ey-4)}else b=H*0.04;
+if(p===p1){b=(q.nx&&q.nx.p===p)?q.nx.top+3:Math.max(0,q.ey-(tail?130:4))}else b=H*0.04;
 t=Math.min(t,H);b=Math.max(b,0);if(t-b>10)out.push({p:p,t:t,b:b})}
 return out}
-function inkOf(cv,rects){var w=cv.width,h=cv.height,t=document.createElement("canvas");t.width=w;t.height=h;var x=t.getContext("2d");x.drawImage(cv,0,0);x.fillStyle="#fff";
-rects.forEach(function(r){x.fillRect(r[0]-3,r[1]-3,r[2]-r[0]+6,r[3]-r[1]+6)});
-var d=x.getImageData(0,0,w,h).data,n=0,x0=w,y0=h,x1=-1,y1=-1,mL=Math.floor(w*0.05),mR=Math.ceil(w*0.95);
-for(var yy=0;yy<h;yy++)for(var xx=mL;xx<mR;xx++){var k=(yy*w+xx)*4;if(d[k]<215||d[k+1]<215||d[k+2]<215){n++;if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy}}
-t.width=t.height=0;return{n:n,x0:x0,y0:y0,x1:x1,y1:y1,hit:n>=250&&(x1-x0)>=45&&(y1-y0)>=30}}
 function trimCv(cv){var w=cv.width,h=cv.height,d=cv.getContext("2d").getImageData(0,0,w,h).data,x0=w,y0=h,x1=-1,y1=-1;
 for(var y=0;y<h;y++)for(var x=0;x<w;x++){var k=(y*w+x)*4;if(d[k]<245||d[k+1]<245||d[k+2]<245){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
 if(x1<0)return null;var P=10,ox=Math.max(0,x0-P),oy=Math.max(0,y0-P),ow=Math.min(w,x1+P+1)-ox,oh=Math.min(h,y1+P+1)-oy,o=document.createElement("canvas");o.width=ow;o.height=oh;var c=o.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,ow,oh);c.drawImage(cv,ox,oy,ow,oh,0,0,ow,oh);return o}
 function stackCv(a){var w=0,h=0;a.forEach(function(c){if(c.width>w)w=c.width;h+=c.height+6});var o=document.createElement("canvas");o.width=w;o.height=h;var x=o.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,w,h);var y=0;a.forEach(function(c){x.drawImage(c,0,y);y+=c.height+6;c.width=0});return o}
-function grabImages(doc,info,items,mode,force,prog){var by={};
-items.forEach(function(q){q.sg=segsFor(q,info);q.sg.forEach(function(g){g.cv=null;(by[g.p]=by[g.p]||[]).push(g)})});
-var pgs=Object.keys(by).map(Number).sort(function(a,b){return a-b}),n=pgs.length;
-function one(k){if(k>=n)return Promise.resolve();if(prog)prog(k+1,n);var pn=pgs[k];
-return doc.getPage(pn).then(function(pg){var vp=pg.getViewport({scale:SCL}),cv=document.createElement("canvas");cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);var cx=cv.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,cv.width,cv.height);
-return pg.render({canvasContext:cx,viewport:vp}).promise.then(function(){
-var rr=(info.rects[pn]||[]).map(function(r){var a=vp.convertToViewportRectangle([r[0],r[1],r[0]+r[2],r[1]+r[3]]);return[Math.min(a[0],a[2]),Math.min(a[1],a[3]),Math.max(a[0],a[2]),Math.max(a[1],a[3])]});
-by[pn].forEach(function(g){var a=vp.convertToViewportRectangle([0,g.b,info.W[pn],g.t]),y0=Math.max(0,Math.floor(Math.min(a[1],a[3]))),y1=Math.min(cv.height,Math.ceil(Math.max(a[1],a[3]))),h=y1-y0;if(h<8)return;
-var band=document.createElement("canvas");band.width=cv.width;band.height=h;band.getContext("2d").drawImage(cv,0,y0,cv.width,h,0,0,cv.width,h);
-var rb=rr.filter(function(r){return r[3]>y0&&r[1]<y1}).map(function(r){return[r[0],r[1]-y0,r[2],r[3]-y0]});
-var ik=inkOf(band,rb);g.hit=ik.hit;
-if(mode==="f"){g.cv=band}
-else if(ik.hit){var P=20,x0=Math.max(0,ik.x0-P),yy0=Math.max(0,ik.y0-P),x1=Math.min(band.width,ik.x1+P),yy1=Math.min(band.height,ik.y1+P),c2=document.createElement("canvas");c2.width=x1-x0;c2.height=yy1-yy0;c2.getContext("2d").drawImage(band,x0,yy0,c2.width,c2.height,0,0,c2.width,c2.height);g.cv=c2;band.width=0}
-else if(force){g.cv=band}else band.width=0});
-cv.width=0;try{pg.cleanup()}catch(e){}})})
-.then(function(){return one(k+1)})}
-return one(0).then(function(){items.forEach(function(q){var a=(q.sg||[]).filter(function(g){return g.cv});if(!a.length)return;
-var big=stackCv(a.map(function(g){return g.cv})),t=trimCv(big);big.width=0;if(!t)return;
-q.img=t.toDataURL("image/jpeg",0.82);t.width=0;q.sg=null})})}
+function findForQ(doc,info,q){var ps=segsFor(q,info,true).map(function(g){return g.p}),k=0;
+function nx(){if(k>=ps.length)return Promise.resolve();var pn=ps[k++];if(info.figs[pn]||!info.its||!info.its[pn])return nx();
+return doc.getPage(pn).then(function(pg){return findFigs(pg,pn,info.its[pn],info).catch(function(){}).then(function(){try{pg.cleanup()}catch(e){}})}).then(nx)}
+return nx()}
+/* Only genuine diagrams are ever attached (graphs, circuits, structures, labelled figures). A picture of the question text / options is never made. */
+function grabImages(doc,info,items,mode,force,prog){if(prog)prog(1,1);return attachFigs(info,items)}
 function runExtract(buf,src){IM.src=src||"";IM.busy="Reading PDF...";IM.items=[];IM.doc=null;IM.info=null;render();
 pdfText(buf).then(function(r){IM.items=parseMCQ(r.lines);IM.info=r.info;IM.doc=r.info.doc;
 if(!IM.items.length){IM.busy="";render();alert("No MCQs found. The PDF may be scanned images. Try pasting the text instead.");return}
 if(IM.nodg){IM.busy="";render();return}
 return grabImages(IM.doc,IM.info,IM.items,"d",false,function(i,n){imBusy("Looking for diagrams: page "+i+" of "+n+"...")}).then(function(){IM.busy="";render()},function(){IM.busy="";render()})},
 function(e){IM.busy="";render();alert(e==="nolib"?"The PDF reader could not start in this browser. Use the latest Chrome.":"Could not read this PDF.")})}
-function impic(q,i){if(q.img)return'<img class="qi" src="'+q.img+'" alt="diagram" onclick="zoomImg(this)"><div class="row" style="margin-top:6px"><button class="btn g s" onclick="IM.items['+i+'].img=null;render()">Remove picture</button><button class="btn g s" onclick="imPic('+i+',\'f\')">Whole question</button></div>';
-return(IM.doc&&q.p)?'<div class="row" style="margin-top:6px"><button class="btn g s" onclick="imPic('+i+',\'f\')">Add picture of question</button></div>':""}
-function imPic(i,m){var q=IM.items[i];if(!q||!IM.doc)return;IM.busy="Making picture...";render();
-grabImages(IM.doc,IM.info,[q],m,true,null).then(function(){IM.busy="";render()},function(){IM.busy="";render();alert("Could not make the picture.")})}
+function impic(q,i){if(q.img)return'<img class="qi" src="'+q.img+'" alt="diagram" onclick="zoomImg(this)"><div class="row" style="margin-top:6px"><button class="btn g s" onclick="IM.items['+i+'].img=null;render()">Remove picture</button><button class="btn g s" onclick="imPic('+i+',\'f\')">Re-detect diagram</button></div>';
+return(IM.doc&&q.p)?'<div class="row" style="margin-top:6px"><button class="btn g s" onclick="imPic('+i+',\'f\')">Find diagram</button></div>':""}
+function imPic(i,m){var q=IM.items[i];if(!q||!IM.doc)return;IM.busy="Looking for the diagram...";render();
+var done=function(){IM.busy="";render()};
+findForQ(IM.doc,IM.info,q).then(function(){var tmp=IM.items.map(function(x){var c={};for(var k in x)c[k]=x[k];c.img=null;return c});
+return attachFigs(IM.info,tmp).then(function(){if(tmp[i].img){q.img=tmp[i].img}else alert("No scientific diagram, graph or structure was found for this question, so no picture was added.")})}).then(done,function(){done();alert("Could not look for a diagram.")})}
 var IMC={};
 function hydrate(){var l=document.querySelectorAll("img[data-im]");for(var i=0;i<l.length;i++)(function(el){var id=el.getAttribute("data-im");if(IMC[id]){el.src=IMC[id];return}sget("i",id).then(function(v){if(v){var n=0;for(var k in IMC)n++;if(n>60)IMC={};IMC[id]=v;el.src=v}else el.style.display="none"},function(){el.style.display="none"})})(l[i])}
 function qimg(m){return m.im?'<img class="qi" data-im="'+m.id+'" alt="diagram" onclick="zoomImg(this)" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">':""}
