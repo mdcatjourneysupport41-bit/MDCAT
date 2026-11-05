@@ -4,7 +4,7 @@
    This worker only ever touches CacheStorage entries that start with "mdcat-".
    It never touches localStorage, IndexedDB or Firebase, so accounts, MCQ progress,
    test results, books and notes are never deleted by an update. */
-var VERSION="2026.11.03.1";
+var VERSION="2026.11.04.1";
 var PREFIX="mdcat-";
 var CACHE=PREFIX+VERSION;
 var ASSETS=["./manifest.json","./icon-192.png","./icon-512.png"];
