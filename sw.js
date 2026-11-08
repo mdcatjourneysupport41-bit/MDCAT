@@ -3,8 +3,12 @@
    different, which is how every student's app notices there is an update.
    This worker only ever touches CacheStorage entries that start with "mdcat-".
    It never touches localStorage, IndexedDB or Firebase, so accounts, MCQ progress,
-   test results, books and notes are never deleted by an update. */
-var VERSION="2026.11.04.1";
+   test results, books and notes are never deleted by an update.
+   OFFLINE OCR PACK: files under vendor/tesseract/ are NOT part of the versioned cache and are never
+   downloaded by an update. The admin's "Prepare offline OCR" button stores them once in the separate
+   cache "ocrpack-1" (it does not start with "mdcat-", so the clean-up below never removes it).
+   Students never download them unless they use a feature that runs OCR. */
+var VERSION="2026.11.07.1";
 var PREFIX="mdcat-";
 var CACHE=PREFIX+VERSION;
 var ASSETS=["./manifest.json","./icon-192.png","./icon-512.png"];
@@ -49,7 +53,13 @@ self.addEventListener("message",function(e){
 self.addEventListener("fetch",function(e){
   var r=e.request;
   if(r.method!=="GET")return;
-  if(new URL(r.url).origin!==self.location.origin)return;
+  var ru=new URL(r.url);
+  if(ru.origin!==self.location.origin)return;
+  if(ru.pathname.indexOf("/vendor/tesseract/")>=0){
+    /* cache-first from the offline OCR pack; otherwise straight from the network; never stored in the versioned cache */
+    e.respondWith(caches.open("ocrpack-1").then(function(c){return c.match(r.url)}).then(function(m){return m||fetch(r)}));
+    return;
+  }
   e.respondWith(
     fetch(r).then(function(n){
       if(n&&n.ok&&n.type==="basic"){var c2=n.clone();caches.open(CACHE).then(function(c){c.put(r,c2)})}
