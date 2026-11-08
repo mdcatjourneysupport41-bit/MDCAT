@@ -4,13 +4,14 @@
    This worker only ever touches CacheStorage entries that start with "mdcat-".
    It never touches localStorage, IndexedDB or Firebase, so accounts, MCQ progress,
    test results, books and notes are never deleted by an update.
-   OFFLINE OCR PACK: files under vendor/tesseract/ are NOT part of the versioned cache and are never
+   OFFLINE OCR PACK: the 5 OCR files (names in OCRFILES, stored next to index.html) are NOT part of the versioned cache and are never
    downloaded by an update. The admin's "Prepare offline OCR" button stores them once in the separate
    cache "ocrpack-1" (it does not start with "mdcat-", so the clean-up below never removes it).
    Students never download them unless they use a feature that runs OCR. */
-var VERSION="2026.11.07.1";
+var VERSION="2026.11.08.1";
 var PREFIX="mdcat-";
 var CACHE=PREFIX+VERSION;
+var OCRFILES=["tesseract.min.js","worker.min.js","tesseract-core-simd-lstm.wasm.js","tesseract-core-lstm.wasm.js","eng.traineddata.gz"];
 var ASSETS=["./manifest.json","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install",function(e){
@@ -55,7 +56,7 @@ self.addEventListener("fetch",function(e){
   if(r.method!=="GET")return;
   var ru=new URL(r.url);
   if(ru.origin!==self.location.origin)return;
-  if(ru.pathname.indexOf("/vendor/tesseract/")>=0){
+  if(OCRFILES.some(function(n){return ru.pathname.slice(-(n.length+1))==="/"+n})){
     /* cache-first from the offline OCR pack; otherwise straight from the network; never stored in the versioned cache */
     e.respondWith(caches.open("ocrpack-1").then(function(c){return c.match(r.url)}).then(function(m){return m||fetch(r)}));
     return;
